@@ -1,4 +1,4 @@
-package main
+package tdt
 
 import (
 	"io"
@@ -260,7 +260,7 @@ func Must(e error) {
 	}
 }
 
-func main() {
+func FullTDTTest() {
 	focal := flag.Int("f", -1, "focal ID (required)")
 	flag.Parse()
 	if *focal == -1 {
