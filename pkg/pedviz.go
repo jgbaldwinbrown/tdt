@@ -1,6 +1,7 @@
 package tdt
 
 import (
+	"sort"
 	"flag"
 	"io"
 	"os"
@@ -63,9 +64,84 @@ func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 	return n, nil
 }
 
+type NamedCluster struct {
+	ID int64
+	Cluster []PedEntry
+}
+
+func SortClusters(clusters map[int64][]PedEntry) []NamedCluster {
+	out := make([]NamedCluster, 0, len(clusters))
+	for cid, cps := range clusters {
+		out = append(out, NamedCluster{cid, cps})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ID >= 10000 && out[j].ID < 10000 {
+			return true
+		}
+		if out[j].ID >= 10000 && out[i].ID < 10000 {
+			return false
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out
+}
+
+func ClusterYs(focalID int64, tree map[int64]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
+	mclusters := make(map[int64][]PedEntry)
+	for _, p := range ps {
+		if HasY(tree[p.PaternalID].PedEntry, focalID, tree) {
+			mclusters[p.PaternalID] = append(mclusters[p.PaternalID], p)
+		} else {
+			unclustered = append(unclustered, p)
+		}
+	}
+	return unclustered, SortClusters(mclusters)
+}
+
+func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error) {
+	if p.PaternalID != 0 {
+		extra := " [style=dotted]"
+		if HasY(p, focalID, tree) {
+			extra = ""
+		}
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled; fillcolor=%v]\n", p.PaternalID, p.IndividualID, extra, p.PaternalID, Blue())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	}
+	if p.MaternalID != 0 {
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled; fillcolor=%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, Red())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	}
+	if p.Sex == 1 {
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled; fillcolor=%v]\n", p.IndividualID, Blue())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	} else if p.Sex == 2 {
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled; fillcolor=%v]\n", p.IndividualID, Red())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	} else if p.Sex == 0 {
+	} else {
+		fmt.Fprintf(os.Stderr, "weird sex: %v; %v\n", p.Sex, p)
+	}
+
+	return n, nil
+}
+
 func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
 	f := opts.FocalID
 	tree := BuildPedTree(ps...)
+
+	unclustered, clusters := ClusterYs(f, tree, ps...)
 
 	nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
@@ -73,40 +149,42 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 		return n, e
 	}
 
-	for _, p := range ps {
-		if p.PaternalID != 0 {
-			extra := " [style=dotted]"
-			if HasY(p, f, tree) {
-				extra = ""
-			}
-			nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled; fillcolor=%v]\n", p.PaternalID, p.IndividualID, extra, p.PaternalID, Blue())
+	for _, p := range unclustered {
+		nwritten, e := fmt.Fprintf(w, "p%v\n", p.IndividualID)
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	}
+
+	for _, cps := range clusters {
+		cid := cps.ID
+		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\n", cid)
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+
+		for _, p := range cps.Cluster {
+			nwritten, e := PedEntryToGraphVizY(w, f, tree, p)
 			n += nwritten
 			if e != nil {
 				return n, e
 			}
 		}
-		if p.MaternalID != 0 {
-			nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled; fillcolor=%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, Red())
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
+
+		nwritten, e = fmt.Fprintf(w, "}\n")
+		n += nwritten
+		if e != nil {
+			return n, e
 		}
-		if p.Sex == 1 {
-			nwritten, e := fmt.Fprintf(w, "p%v [style=filled; fillcolor=%v]\n", p.IndividualID, Blue())
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
-		} else if p.Sex == 2 {
-			nwritten, e := fmt.Fprintf(w, "p%v [style=filled; fillcolor=%v]\n", p.IndividualID, Red())
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
-		} else if p.Sex == 0 {
-		} else {
-			fmt.Fprintf(os.Stderr, "weird sex: %v; %v\n", p.Sex, p)
+	}
+
+	for _, p := range unclustered {
+		nwritten, e := PedEntryToGraphVizY(w, f, tree, p)
+		n += nwritten
+		if e != nil {
+			return n, e
 		}
 	}
 
