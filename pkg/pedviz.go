@@ -145,64 +145,54 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 
 	nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
-	if e != nil {
-		return n, e
-	}
+	if e != nil { return n, e }
 
 	for _, p := range unclustered {
 		nwritten, e := fmt.Fprintf(w, "p%v\n", p.IndividualID)
 		n += nwritten
-		if e != nil {
-			return n, e
-		}
+		if e != nil { return n, e }
 	}
 
 	for _, cps := range clusters {
 		cid := cps.ID
 		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\n", cid)
 		n += nwritten
-		if e != nil {
-			return n, e
-		}
+		if e != nil { return n, e }
 
 		for _, p := range cps.Cluster {
 			nwritten, e := PedEntryToGraphVizY(w, f, tree, p)
 			n += nwritten
-			if e != nil {
-				return n, e
-			}
+			if e != nil { return n, e }
 		}
 
 		nwritten, e = fmt.Fprintf(w, "}\n")
 		n += nwritten
-		if e != nil {
-			return n, e
-		}
+		if e != nil { return n, e }
 	}
 
 	for _, p := range unclustered {
 		nwritten, e := PedEntryToGraphVizY(w, f, tree, p)
 		n += nwritten
-		if e != nil {
-			return n, e
-		}
+		if e != nil { return n, e }
 	}
 
 	nwritten, e = fmt.Fprintf(w, "}\n")
 	n += nwritten
-	if e != nil {
-		return n, e
-	}
+	if e != nil { return n, e }
 
 	return n, nil
 }
 
 func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
-	if opts.Style == "Y" {
+	switch opts.Style {
+	case "Y":
 		return ToGraphVizY(w, opts, ps...)
+	case "X":
+		return ToGraphVizX(w, opts, ps...)
+	default:
+		return ToGraphVizSimple(w, ps...)
 	}
 
-	return ToGraphVizSimple(w, ps...)
 }
 
 type GraphVizOpts struct {
@@ -213,7 +203,7 @@ type GraphVizOpts struct {
 func GetOpts() GraphVizOpts {
 	g := GraphVizOpts{}
 	var f int
-	flag.StringVar(&g.Style, "s", "", "Style for printing (try Y)")
+	flag.StringVar(&g.Style, "s", "", "Style for printing (try Y or X)")
 	flag.IntVar(&f, "f", -1, "Focal ID")
 	flag.Parse()
 	g.FocalID = int64(f)
