@@ -163,7 +163,8 @@ func ShouldPrintAParent(p PedEntry, focalID int64, tree map[int64]Node, opts Gra
 
 func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[int64]) (n int, err error) {
 	if p.PaternalID != 0 {
-		extra := " [style=dotted]"
+		extra := " [color = \"#888888\"]"
+		// extra := " [style=dotted]"
 		if HasY(p, focalID, tree) {
 			extra = ""
 		}
@@ -174,7 +175,7 @@ func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedE
 		}
 	}
 	if p.MaternalID != 0 {
-		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled; fillcolor=%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, Red())
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [color = \"#888888\"]\np%v [style=filled; fillcolor=%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, Red())
 		n += nwritten
 		if e != nil {
 			return n, e
@@ -240,7 +241,8 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 			myid = fmt.Sprintf("x%v", p.PaternalID)
 		}
 
-		extra := " [style=dotted]"
+		// extra := " [style=dotted]"
+		extra := " [color = \"#888888\"]"
 		if HasY(p, focalID, tree) {
 			extra = ""
 		}
@@ -258,7 +260,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 			myid = fmt.Sprintf("x%v", p.MaternalID)
 		}
 
-		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled%v]\n", p.MaternalID, myid, p.MaternalID, FemAes())
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [color = \"#888888\"]\np%v [style=filled%v]\n", p.MaternalID, myid, p.MaternalID, FemAes())
 		n += nwritten
 		if e != nil {
 			return n, e
@@ -278,14 +280,14 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 		}
 	} else if printparent && !printit {
 		if p.MaternalID != 0 {
-			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"]\n", p.MaternalID)
+			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"; fontsize = 24]\n", p.MaternalID)
 			n += nwritten
 			if e != nil {
 				return n, e
 			}
 		}
 		if p.PaternalID != 0 {
-			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"]\n", p.PaternalID)
+			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"]; fontsize = 24\n", p.PaternalID)
 			n += nwritten
 			if e != nil {
 				return n, e
@@ -325,8 +327,9 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	nwritten, e := fmt.Fprintf(w, `digraph full {
 graph [ranksep="1.25"];
 overlap = false;
-splines = true;
-node [width = 0.1, height = 0.1, margin = 0.03];
+splines = ortho;
+node [width = 0.1, height = 0.5, margin = 0.03];
+edge [dir = none];
 `)
 	// graph [pad="0.5", nodesep="1", ranksep="2"];
 
@@ -346,7 +349,12 @@ node [width = 0.1, height = 0.1, margin = 0.03];
 		cid := cps.ID
 		malefrac := cps.MaleFrac()
 
-		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\nlabel = \"%v\"\nlabeljust = \"l\"\nlabelloc = \"l\"\n", cid, Percentify(malefrac))
+		nwritten, e := fmt.Fprintf(w, `subgraph cluster_%v {
+label = "%v"
+labeljust = "l"
+labelloc = "l"
+graph [color = "#888888"]
+`, cid, Percentify(malefrac))
 		n += nwritten
 		if e != nil { return n, e }
 
