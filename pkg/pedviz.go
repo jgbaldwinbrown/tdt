@@ -16,6 +16,22 @@ func Blue() string {
 	return `"#6666cc"`
 }
 
+func FemShape() string {
+	return `circle`
+}
+
+func MaleShape() string {
+	return `square`
+}
+
+func FemAes() string {
+	return fmt.Sprintf(`; fillcolor=%v; shape=%v`, Red(), FemShape())
+}
+
+func MaleAes() string {
+	return fmt.Sprintf(`; fillcolor=%v; shape=%v`, Blue(), MaleShape())
+}
+
 func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 	nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
@@ -67,6 +83,23 @@ func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 type NamedCluster struct {
 	ID int64
 	Cluster []PedEntry
+}
+
+func (c NamedCluster) MaleFrac() float64 {
+	nmales := 0
+	printit := false
+	for _, pe := range c.Cluster {
+		if pe.Sex == 1 {
+			nmales++
+		}
+		if pe.IndividualID == 16 {
+			printit = true
+		}
+	}
+	if printit {
+		fmt.Fprintln(os.Stderr, "16 family:", c)
+	}
+	return float64(nmales) / float64(len(c.Cluster))
 }
 
 func SortClusters(clusters map[int64][]PedEntry) []NamedCluster {
@@ -137,9 +170,64 @@ func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedE
 	return n, nil
 }
 
+func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error) {
+	if p.PaternalID != 0 {
+		extra := " [style=dotted]"
+		if HasY(p, focalID, tree) {
+			extra = ""
+		}
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled%v]\n", p.PaternalID, p.IndividualID, extra, p.PaternalID, MaleAes())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	}
+	if p.MaternalID != 0 {
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, FemAes())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	}
+	if p.Sex == 1 {
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, MaleAes())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	} else if p.Sex == 2 {
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, FemAes())
+		n += nwritten
+		if e != nil {
+			return n, e
+		}
+	} else if p.Sex == 0 {
+	} else {
+		fmt.Fprintf(os.Stderr, "weird sex: %v; %v\n", p.Sex, p)
+	}
+
+	return n, nil
+}
+
+type PedEncodeFunc func(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error)
+
+func GetStylePedFunc(style string) PedEncodeFunc {
+	switch style {
+	case "YShape": return PedEntryToGraphVizYShape
+	case "Y": return PedEntryToGraphVizY
+	default: return PedEntryToGraphVizY
+	}
+}
+
+func Percentify(f float64) string {
+	return fmt.Sprintf("%.2f%%", f * 100.0)
+}
+
 func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
 	f := opts.FocalID
 	tree := BuildPedTree(ps...)
+
+	pedfunc := GetStylePedFunc(opts.Style)
 
 	unclustered, clusters := ClusterYs(f, tree, ps...)
 
@@ -155,12 +243,14 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 
 	for _, cps := range clusters {
 		cid := cps.ID
-		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\n", cid)
+		malefrac := cps.MaleFrac()
+
+		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\nlabel = \"%v\"\n", cid, Percentify(malefrac))
 		n += nwritten
 		if e != nil { return n, e }
 
 		for _, p := range cps.Cluster {
-			nwritten, e := PedEntryToGraphVizY(w, f, tree, p)
+			nwritten, e := pedfunc(w, f, tree, p)
 			n += nwritten
 			if e != nil { return n, e }
 		}
@@ -171,7 +261,7 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	}
 
 	for _, p := range unclustered {
-		nwritten, e := PedEntryToGraphVizY(w, f, tree, p)
+		nwritten, e := pedfunc(w, f, tree, p)
 		n += nwritten
 		if e != nil { return n, e }
 	}
@@ -185,6 +275,8 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 
 func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
 	switch opts.Style {
+	case "YShape":
+		fallthrough
 	case "Y":
 		return ToGraphVizY(w, opts, ps...)
 	case "X":
@@ -192,7 +284,6 @@ func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err erro
 	default:
 		return ToGraphVizSimple(w, ps...)
 	}
-
 }
 
 type GraphVizOpts struct {
