@@ -131,7 +131,37 @@ func ClusterYs(focalID int64, tree map[int64]Node, ps ...PedEntry) (unclustered 
 	return unclustered, SortClusters(mclusters)
 }
 
-func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error) {
+func ShouldPrint(p PedEntry, focalID int64, tree map[int64]Node, opts GraphVizOpts) bool {
+	if !opts.StripUninf {
+		return true
+	}
+	return DadHasY(p, focalID, tree) || HasY(p, focalID, tree) || (p.PaternalID == 0 && p.MaternalID == 0)
+}
+
+func ShouldPrintAParent(p PedEntry, focalID int64, tree map[int64]Node, opts GraphVizOpts) bool {
+	if !opts.StripUninf {
+		return true
+	}
+	if p.PaternalID != 0 {
+		if d, ok := tree[p.PaternalID]; ok {
+			if ShouldPrint(d.PedEntry, focalID, tree, opts) {
+				return true
+			}
+		}
+	}
+
+	if p.MaternalID != 0 {
+		if m, ok := tree[p.MaternalID]; ok {
+			if ShouldPrint(m.PedEntry, focalID, tree, opts) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts) (n int, err error) {
 	if p.PaternalID != 0 {
 		extra := " [style=dotted]"
 		if HasY(p, focalID, tree) {
@@ -170,36 +200,66 @@ func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedE
 	return n, nil
 }
 
-func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error) {
-	if p.PaternalID != 0 {
+func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts) (n int, err error) {
+	printit := ShouldPrint(p, focalID, tree, opts)
+	printparent := ShouldPrintAParent(p, focalID, tree, opts)
+	fmt.Fprintf(os.Stderr, "printit: %v; printparent: %v\n", printit, printparent)
+
+
+	if p.PaternalID != 0 && printparent {
+		myid := fmt.Sprintf("%v", p.IndividualID)
+		if !printit {
+			myid = fmt.Sprintf("x%v", p.PaternalID)
+		}
+
 		extra := " [style=dotted]"
 		if HasY(p, focalID, tree) {
 			extra = ""
 		}
-		nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled%v]\n", p.PaternalID, p.IndividualID, extra, p.PaternalID, MaleAes())
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled%v]\n", p.PaternalID, myid, extra, p.PaternalID, MaleAes())
 		n += nwritten
 		if e != nil {
 			return n, e
 		}
 	}
-	if p.MaternalID != 0 {
-		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, FemAes())
+	if p.MaternalID != 0 && printparent {
+		myid := fmt.Sprintf("%v", p.IndividualID)
+		if !printit {
+			myid = fmt.Sprintf("x%v", p.MaternalID)
+		}
+
+		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [style=dotted]\np%v [style=filled%v]\n", p.MaternalID, myid, p.MaternalID, FemAes())
 		n += nwritten
 		if e != nil {
 			return n, e
 		}
 	}
-	if p.Sex == 1 {
+	if p.Sex == 1 && printit {
 		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, MaleAes())
 		n += nwritten
 		if e != nil {
 			return n, e
 		}
-	} else if p.Sex == 2 {
+	} else if p.Sex == 2 && printit {
 		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, FemAes())
 		n += nwritten
 		if e != nil {
 			return n, e
+		}
+	} else if printparent && !printit {
+		if p.MaternalID != 0 {
+			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"]\n", p.MaternalID)
+			n += nwritten
+			if e != nil {
+				return n, e
+			}
+		}
+		if p.PaternalID != 0 {
+			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"]\n", p.PaternalID)
+			n += nwritten
+			if e != nil {
+				return n, e
+			}
 		}
 	} else if p.Sex == 0 {
 	} else {
@@ -209,7 +269,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 	return n, nil
 }
 
-type PedEncodeFunc func(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error)
+type PedEncodeFunc func(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts) (n int, err error)
 
 func GetStylePedFunc(style string) PedEncodeFunc {
 	switch style {
@@ -250,7 +310,7 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 		if e != nil { return n, e }
 
 		for _, p := range cps.Cluster {
-			nwritten, e := pedfunc(w, f, tree, p)
+			nwritten, e := pedfunc(w, f, tree, p, opts)
 			n += nwritten
 			if e != nil { return n, e }
 		}
@@ -261,7 +321,7 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	}
 
 	for _, p := range unclustered {
-		nwritten, e := pedfunc(w, f, tree, p)
+		nwritten, e := pedfunc(w, f, tree, p, opts)
 		n += nwritten
 		if e != nil { return n, e }
 	}
@@ -289,6 +349,7 @@ func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err erro
 type GraphVizOpts struct {
 	Style string
 	FocalID int64
+	StripUninf bool
 }
 
 func GetOpts() GraphVizOpts {
@@ -296,6 +357,7 @@ func GetOpts() GraphVizOpts {
 	var f int
 	flag.StringVar(&g.Style, "s", "", "Style for printing (try Y or X)")
 	flag.IntVar(&f, "f", -1, "Focal ID")
+	flag.BoolVar(&g.StripUninf, "strip", false, "Strip offspring that do not contribute to Y test")
 	flag.Parse()
 	g.FocalID = int64(f)
 	return g

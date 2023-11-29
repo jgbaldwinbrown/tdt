@@ -114,6 +114,13 @@ func HasY(p PedEntry, focalID int64, tree map[int64]Node) bool {
 	return false
 }
 
+func DadHasY(p PedEntry, focalID int64, tree map[int64]Node) bool {
+	if dad, ok := tree[p.PaternalID]; ok {
+		return HasY(dad.PedEntry, focalID, tree)
+	}
+	return false
+}
+
 func HasX(p PedEntry, focalID int64, tree map[int64]Node) bool {
 	if p.IndividualID == focalID {
 		return true
