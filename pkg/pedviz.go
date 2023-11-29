@@ -310,7 +310,7 @@ func GetStylePedFunc(style string) PedEncodeFunc {
 }
 
 func Percentify(f float64) string {
-	return fmt.Sprintf("%.2f%%", f * 100.0)
+	return fmt.Sprintf("%.0f%%", f * 100.0)
 }
 
 func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
@@ -322,7 +322,15 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 
 	unclustered, clusters := ClusterYs(f, tree, ps...)
 
-	nwritten, e := fmt.Fprintf(w, "digraph full {\n")
+	nwritten, e := fmt.Fprintf(w, `digraph full {
+graph [ranksep="1.25"];
+overlap = false;
+splines = true;
+node [width = 0.1, height = 0.1, margin = 0.03];
+`)
+	// graph [pad="0.5", nodesep="1", ranksep="2"];
+
+	// nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
 	if e != nil { return n, e }
 
@@ -338,7 +346,7 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 		cid := cps.ID
 		malefrac := cps.MaleFrac()
 
-		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\nlabel = \"%v\"\n", cid, Percentify(malefrac))
+		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\nlabel = \"%v\"\nlabeljust = \"l\"\nlabelloc = \"l\"\n", cid, Percentify(malefrac))
 		n += nwritten
 		if e != nil { return n, e }
 
