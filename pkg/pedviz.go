@@ -9,11 +9,11 @@ import (
 )
 
 func Red() string {
-	return `"#cc6666"`
+	return `"#cc8888"`
 }
 
 func Blue() string {
-	return `"#6666cc"`
+	return `"#aaaaee"`
 }
 
 func FemShape() string {
@@ -242,7 +242,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 					return n, e
 				}
 
-				nwritten, e = fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.PaternalID)
+				nwritten, e = fmt.Fprintf(w, "px%v [shape = point, width = 0.04, height = 0.04]\n", p.PaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -281,7 +281,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 				if e != nil {
 					return n, e
 				}
-				nwritten, e = fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.MaternalID)
+				nwritten, e = fmt.Fprintf(w, "px%v [shape = point, width = 0.04, height = 0.04]\n", p.MaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -352,8 +352,8 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	unclustered, clusters := ClusterYs(f, tree, ps...)
 
 	nwritten, e := fmt.Fprintf(w, `digraph full {
-graph [ranksep="0.4"];
-overlap = false;
+graph [ranksep="0.5"];
+overlap = true;
 splines = true;
 node [width = 0.1, height = 0.5, margin = 0.03];
 edge [dir = none];
