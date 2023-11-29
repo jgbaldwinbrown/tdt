@@ -234,11 +234,26 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 
 
 	if p.PaternalID != 0 && printparent {
-		prevparent.Add(p.PaternalID)
+		if !prevparent.Contains(p.PaternalID) {
+			nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
+			n += nwritten
+			if e != nil {
+				return n, e
+			}
 
-		myid := fmt.Sprintf("%v", p.IndividualID)
-		if !printit {
-			myid = fmt.Sprintf("x%v", p.PaternalID)
+			if printit {
+				nwritten, e := fmt.Fprintf(w, "px%v [shape = point]\n", p.PaternalID)
+				n += nwritten
+				if e != nil {
+					return n, e
+				}
+			} else {
+				nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"; fontsize = 24]\n", p.PaternalID)
+				n += nwritten
+				if e != nil {
+					return n, e
+				}
+			}
 		}
 
 		// extra := " [style=dotted]"
@@ -246,25 +261,52 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 		if HasY(p, focalID, tree) {
 			extra = ""
 		}
-		nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled%v]\n", p.PaternalID, myid, extra, p.PaternalID, MaleAes())
-		n += nwritten
-		if e != nil {
-			return n, e
+		// nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled%v]\n", p.PaternalID, myid, extra, p.PaternalID, MaleAes())
+
+		if printit {
+			nwritten, e := fmt.Fprintf(w, "px%v -> p%v%v\n", p.PaternalID, p.IndividualID, extra)
+			n += nwritten
+			if e != nil {
+				return n, e
+			}
 		}
+		prevparent.Add(p.PaternalID)
 	}
 	if p.MaternalID != 0 && printparent {
+		if !prevparent.Contains(p.MaternalID) {
+			nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes())
+			n += nwritten
+			if e != nil {
+				return n, e
+			}
+
+			if printit {
+				nwritten, e := fmt.Fprintf(w, "px%v [shape = point]\n", p.MaternalID)
+				n += nwritten
+				if e != nil {
+					return n, e
+				}
+			} else {
+				nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"; fontsize = 24]\n", p.MaternalID)
+				n += nwritten
+				if e != nil {
+					return n, e
+				}
+			}
+		}
+
+		// extra := " [style=dotted]"
+		extra := " [color = \"#888888\"]"
+		// nwritten, e := fmt.Fprintf(w, "p%v -> p%v%v\np%v [style=filled%v]\n", p.MaternalID, myid, extra, p.MaternalID, FemAes())
+
+		if printit {
+			nwritten, e := fmt.Fprintf(w, "px%v -> p%v%v\n", p.MaternalID, p.IndividualID, extra)
+			n += nwritten
+			if e != nil {
+				return n, e
+			}
+		}
 		prevparent.Add(p.MaternalID)
-
-		myid := fmt.Sprintf("%v", p.IndividualID)
-		if !printit {
-			myid = fmt.Sprintf("x%v", p.MaternalID)
-		}
-
-		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [color = \"#888888\"]\np%v [style=filled%v]\n", p.MaternalID, myid, p.MaternalID, FemAes())
-		n += nwritten
-		if e != nil {
-			return n, e
-		}
 	}
 	if p.Sex == 1 && printit {
 		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, MaleAes())
@@ -277,21 +319,6 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 		n += nwritten
 		if e != nil {
 			return n, e
-		}
-	} else if printparent && !printit {
-		if p.MaternalID != 0 {
-			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"; fontsize = 24]\n", p.MaternalID)
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
-		}
-		if p.PaternalID != 0 {
-			nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"]; fontsize = 24\n", p.PaternalID)
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
 		}
 	} else if p.Sex == 0 {
 	} else {
@@ -325,9 +352,9 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	unclustered, clusters := ClusterYs(f, tree, ps...)
 
 	nwritten, e := fmt.Fprintf(w, `digraph full {
-graph [ranksep="1.25"];
+graph [ranksep="0.4"];
 overlap = false;
-splines = ortho;
+splines = true;
 node [width = 0.1, height = 0.5, margin = 0.03];
 edge [dir = none];
 `)
