@@ -327,9 +327,11 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	if e != nil { return n, e }
 
 	for _, p := range unclustered {
-		nwritten, e := fmt.Fprintf(w, "p%v\n", p.IndividualID)
-		n += nwritten
-		if e != nil { return n, e }
+		if ShouldPrint(p, f, tree, opts) {
+			nwritten, e := fmt.Fprintf(w, "p%v\n", p.IndividualID)
+			n += nwritten
+			if e != nil { return n, e }
+		}
 	}
 
 	for _, cps := range clusters {
