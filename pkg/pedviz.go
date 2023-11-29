@@ -242,7 +242,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 			}
 
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "px%v [shape = point]\n", p.PaternalID)
+				nwritten, e := fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.PaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -281,7 +281,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 			}
 
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "px%v [shape = point]\n", p.MaternalID)
+				nwritten, e := fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.MaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
