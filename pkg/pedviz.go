@@ -235,20 +235,20 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 
 	if p.PaternalID != 0 && printparent {
 		if !prevparent.Contains(p.PaternalID) {
-			nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
-
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.PaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
+				n += nwritten
+				if e != nil {
+					return n, e
+				}
+
+				nwritten, e = fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.PaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"; fontsize = 24]\n", p.PaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\"]\n", p.PaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -274,20 +274,20 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 	}
 	if p.MaternalID != 0 && printparent {
 		if !prevparent.Contains(p.MaternalID) {
-			nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes())
-			n += nwritten
-			if e != nil {
-				return n, e
-			}
 
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.MaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes())
+				n += nwritten
+				if e != nil {
+					return n, e
+				}
+				nwritten, e = fmt.Fprintf(w, "px%v [shape = point, width = 0.03, height = 0.03]\n", p.MaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "px%v [shape = plaintext; label = \"...\"; fontsize = 24]\n", p.MaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled,dashed\"]\n", p.MaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
