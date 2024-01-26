@@ -236,7 +236,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 	if p.PaternalID != 0 && printparent {
 		if !prevparent.Contains(p.PaternalID) {
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v, label = \"\"]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -248,7 +248,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\"]\n", p.PaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\", label = \"\"]\n", p.PaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -276,7 +276,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 		if !prevparent.Contains(p.MaternalID) {
 
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes())
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v, label = \"\"]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes())
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -287,7 +287,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled,dashed\"]\n", p.MaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled,dashed\", label = \"\"]\n", p.MaternalID)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -309,13 +309,13 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 		prevparent.Add(p.MaternalID)
 	}
 	if p.Sex == 1 && printit {
-		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, MaleAes())
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v, label = \"\"]\n", p.IndividualID, MaleAes())
 		n += nwritten
 		if e != nil {
 			return n, e
 		}
 	} else if p.Sex == 2 && printit {
-		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v]\n", p.IndividualID, FemAes())
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v, label = \"\"]\n", p.IndividualID, FemAes())
 		n += nwritten
 		if e != nil {
 			return n, e
@@ -352,6 +352,7 @@ func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 	unclustered, clusters := ClusterYs(f, tree, ps...)
 
 	nwritten, e := fmt.Fprintf(w, `digraph full {
+fontsize = 24;
 graph [ranksep="0.5"];
 overlap = true;
 splines = true;
