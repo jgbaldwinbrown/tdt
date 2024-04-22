@@ -1,6 +1,8 @@
 package tdt
 
 import (
+	"log"
+	"strconv"
 	"encoding/json"
 	"regexp"
 	"io"
@@ -320,7 +322,7 @@ func ParsePed(r io.Reader) ([]PedEntry, error) {
 
 func Must(e error) {
 	if e != nil {
-		panic(e)
+		log.Fatal(e)
 	}
 }
 
@@ -454,4 +456,58 @@ func FullTDTTest() {
 	res.Name = "Auto"
 	err = enc.Encode(ToJson(res))
 	Must(err)
+}
+
+func ReadLinesInts(path string) ([]int64, error) {
+	r, e := os.Open(path)
+	if e != nil {
+		return nil, e
+	}
+	defer r.Close()
+
+	var out []int64
+	s := bufio.NewScanner(r)
+	s.Buffer([]byte{}, 1e12)
+	for s.Scan() {
+		if s.Err() != nil {
+			return nil, s.Err()
+		}
+		i, e := strconv.ParseInt(s.Text(), 0, 64)
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, i)
+	}
+	return out, nil
+}
+
+func FullMultiYTDTTest() {
+	focalPath := flag.String("f", "", "path to line-separated IDs for focal individuals")
+	flag.Parse()
+	if *focalPath == "" {
+		log.Fatal(fmt.Errorf("missing -f"))
+	}
+
+	peds, e := ParsePed(os.Stdin)
+	Must(e)
+
+	w := bufio.NewWriter(os.Stdout)
+	defer func() {
+		e := w.Flush()
+		if e != nil {
+			log.Fatal(e)
+		}
+	}()
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "\t")
+
+	focals, e := ReadLinesInts(*focalPath)
+	Must(e)
+
+	for _, f := range focals {
+		res := TDTTest(BuildFamiliesY(f, peds...)...)
+		res.Name = fmt.Sprint(f)
+		err := enc.Encode(ToJson(res))
+		Must(err)
+	}
 }
