@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-func ClusterXs(focalID int64, tree map[int64]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
-	mclusters := make(map[int64][]PedEntry)
+func ClusterXs(focalID string, tree map[string]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
+	mclusters := make(map[string][]PedEntry)
 	for _, p := range ps {
 		if HasX(tree[p.MaternalID].PedEntry, focalID, tree) {
 			mclusters[p.MaternalID] = append(mclusters[p.MaternalID], p)
@@ -18,8 +18,8 @@ func ClusterXs(focalID int64, tree map[int64]Node, ps ...PedEntry) (unclustered 
 	return unclustered, SortClusters(mclusters)
 }
 
-func PedEntryToGraphVizX(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry) (n int, err error) {
-	if p.PaternalID != 0 {
+func PedEntryToGraphVizX(w io.Writer, focalID string, tree map[string]Node, p PedEntry) (n int, err error) {
+	if p.PaternalID != "0" {
 		extra := " [style=dotted]"
 		if HasX(tree[p.PaternalID].PedEntry, focalID, tree) && p.Sex == 2 {
 			extra = ""
@@ -30,7 +30,7 @@ func PedEntryToGraphVizX(w io.Writer, focalID int64, tree map[int64]Node, p PedE
 			return n, e
 		}
 	}
-	if p.MaternalID != 0 {
+	if p.MaternalID != "0" {
 		extra := " [style=dotted]"
 		if HasX(tree[p.MaternalID].PedEntry, focalID, tree) {
 			extra = ""

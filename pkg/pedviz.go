@@ -40,14 +40,14 @@ func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 	}
 
 	for _, p := range ps {
-		if p.PaternalID != 0 {
+		if p.PaternalID != "0" {
 			nwritten, e := fmt.Fprintf(w, "p%v -> p%v\np%v [style=filled; fillcolor=%v]\n", p.PaternalID, p.IndividualID, p.PaternalID, Blue())
 			n += nwritten
 			if e != nil {
 				return n, e
 			}
 		}
-		if p.MaternalID != 0 {
+		if p.MaternalID != "0" {
 			nwritten, e := fmt.Fprintf(w, "p%v -> p%v\np%v [style=filled; fillcolor=%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, Red())
 			n += nwritten
 			if e != nil {
@@ -81,7 +81,7 @@ func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 }
 
 type NamedCluster struct {
-	ID int64
+	ID string
 	Cluster []PedEntry
 }
 
@@ -92,7 +92,7 @@ func (c NamedCluster) MaleFrac() float64 {
 		if pe.Sex == 1 {
 			nmales++
 		}
-		if pe.IndividualID == 16 {
+		if pe.IndividualID == "16" {
 			printit = true
 		}
 	}
@@ -102,16 +102,16 @@ func (c NamedCluster) MaleFrac() float64 {
 	return float64(nmales) / float64(len(c.Cluster))
 }
 
-func SortClusters(clusters map[int64][]PedEntry) []NamedCluster {
+func SortClusters(clusters map[string][]PedEntry) []NamedCluster {
 	out := make([]NamedCluster, 0, len(clusters))
 	for cid, cps := range clusters {
 		out = append(out, NamedCluster{cid, cps})
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].ID >= 10000 && out[j].ID < 10000 {
+		if out[i].ID >= "10000" && out[j].ID < "10000" {
 			return true
 		}
-		if out[j].ID >= 10000 && out[i].ID < 10000 {
+		if out[j].ID >= "10000" && out[i].ID < "10000" {
 			return false
 		}
 		return out[i].ID < out[j].ID
@@ -119,8 +119,8 @@ func SortClusters(clusters map[int64][]PedEntry) []NamedCluster {
 	return out
 }
 
-func ClusterYs(focalID int64, tree map[int64]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
-	mclusters := make(map[int64][]PedEntry)
+func ClusterYs(focalID string, tree map[string]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
+	mclusters := make(map[string][]PedEntry)
 	for _, p := range ps {
 		if HasY(tree[p.PaternalID].PedEntry, focalID, tree) {
 			mclusters[p.PaternalID] = append(mclusters[p.PaternalID], p)
@@ -131,18 +131,18 @@ func ClusterYs(focalID int64, tree map[int64]Node, ps ...PedEntry) (unclustered 
 	return unclustered, SortClusters(mclusters)
 }
 
-func ShouldPrint(p PedEntry, focalID int64, tree map[int64]Node, opts GraphVizOpts) bool {
+func ShouldPrint(p PedEntry, focalID string, tree map[string]Node, opts GraphVizOpts) bool {
 	if !opts.StripUninf {
 		return true
 	}
-	return DadHasY(p, focalID, tree) || HasY(p, focalID, tree) || (p.PaternalID == 0 && p.MaternalID == 0)
+	return DadHasY(p, focalID, tree) || HasY(p, focalID, tree) || (p.PaternalID == "0" && p.MaternalID == "0")
 }
 
-func ShouldPrintAParent(p PedEntry, focalID int64, tree map[int64]Node, opts GraphVizOpts) bool {
+func ShouldPrintAParent(p PedEntry, focalID string, tree map[string]Node, opts GraphVizOpts) bool {
 	if !opts.StripUninf {
 		return true
 	}
-	if p.PaternalID != 0 {
+	if p.PaternalID != "0" {
 		if d, ok := tree[p.PaternalID]; ok {
 			if ShouldPrint(d.PedEntry, focalID, tree, opts) {
 				return true
@@ -150,7 +150,7 @@ func ShouldPrintAParent(p PedEntry, focalID int64, tree map[int64]Node, opts Gra
 		}
 	}
 
-	if p.MaternalID != 0 {
+	if p.MaternalID != "0" {
 		if m, ok := tree[p.MaternalID]; ok {
 			if ShouldPrint(m.PedEntry, focalID, tree, opts) {
 				return true
@@ -161,8 +161,8 @@ func ShouldPrintAParent(p PedEntry, focalID int64, tree map[int64]Node, opts Gra
 	return false
 }
 
-func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[int64], prevparentpair *Set[Int64Pair]) (n int, err error) {
-	if p.PaternalID != 0 {
+func PedEntryToGraphVizY(w io.Writer, focalID string, tree map[string]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[string], prevparentpair *Set[Int64Pair]) (n int, err error) {
+	if p.PaternalID != "0" {
 		extra := " [color = \"#888888\"]"
 		// extra := " [style=dotted]"
 		if HasY(p, focalID, tree) {
@@ -174,7 +174,7 @@ func PedEntryToGraphVizY(w io.Writer, focalID int64, tree map[int64]Node, p PedE
 			return n, e
 		}
 	}
-	if p.MaternalID != 0 {
+	if p.MaternalID != "0" {
 		nwritten, e := fmt.Fprintf(w, "p%v -> p%v [color = \"#888888\"]\np%v [style=filled; fillcolor=%v]\n", p.MaternalID, p.IndividualID, p.MaternalID, Red())
 		n += nwritten
 		if e != nil {
@@ -220,20 +220,20 @@ func (s *Set[T]) Contains(val T) bool {
 	return ok
 }
 
-func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[int64], prevparentpair *Set[Int64Pair]) (n int, err error) {
+func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[string], prevparentpair *Set[Int64Pair]) (n int, err error) {
 	printit := ShouldPrint(p, focalID, tree, opts)
 	printparent := ShouldPrintAParent(p, focalID, tree, opts)
 	fmt.Fprintf(os.Stderr, "printit: %v; printparent: %v\n", printit, printparent)
 
 	if (!printit) {
-		if ((prevparent.Contains(p.MaternalID) || p.MaternalID == 0) &&
-			(prevparent.Contains(p.PaternalID) || p.PaternalID == 0)) {
+		if ((prevparent.Contains(p.MaternalID) || p.MaternalID == "0") &&
+			(prevparent.Contains(p.PaternalID) || p.PaternalID == "0")) {
 			return n, err
 		}
 	}
 
 
-	if p.PaternalID != 0 && printparent && p.MaternalID != 0 {
+	if p.PaternalID != "0" && printparent && p.MaternalID != "0" {
 		if !prevparentpair.Contains(Int64Pair{p.PaternalID, p.MaternalID}) {
 			if printit {
 				nwritten, e := fmt.Fprintf(w, "p%v ->px%vmx%v\np%v [style = filled%v, label = \"\"]\n", p.PaternalID, p.PaternalID, p.MaternalID, p.PaternalID, MaleAes())
@@ -281,7 +281,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 			}
 		}
 		prevparentpair.Add(Int64Pair{p.PaternalID, p.MaternalID})
-	} else if p.PaternalID != 0 && printparent {
+	} else if p.PaternalID != "0" && printparent {
 		if !prevparent.Contains(p.PaternalID) {
 			if printit {
 				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v, label = \"\"]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
@@ -319,7 +319,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 			}
 		}
 		prevparent.Add(p.PaternalID)
-	} else if p.MaternalID != 0 && printparent {
+	} else if p.MaternalID != "0" && printparent {
 		if !prevparent.Contains(p.MaternalID) {
 
 			if printit {
@@ -375,7 +375,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID int64, tree map[int64]Node, p
 	return n, nil
 }
 
-type PedEncodeFunc func(w io.Writer, focalID int64, tree map[int64]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[int64], prevparentpair *Set[Int64Pair]) (n int, err error)
+type PedEncodeFunc func(w io.Writer, focalID string, tree map[string]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[string], prevparentpair *Set[Int64Pair]) (n int, err error)
 
 func GetStylePedFunc(style string) PedEncodeFunc {
 	switch style {
@@ -390,12 +390,12 @@ func Percentify(f float64) string {
 }
 
 type Int64Pair struct {
-	I0 int64
-	I1 int64
+	I0 string
+	I1 string
 }
 
 func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
-	prevparent := NewSet[int64]()
+	prevparent := NewSet[string]()
 	prevparentpair := NewSet[Int64Pair]()
 	f := opts.FocalID
 	tree := BuildPedTree(ps...)
@@ -478,18 +478,18 @@ func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err erro
 
 type GraphVizOpts struct {
 	Style string
-	FocalID int64
+	FocalID string
 	StripUninf bool
 }
 
 func GetOpts() GraphVizOpts {
 	g := GraphVizOpts{}
-	var f int
+	var f string
 	flag.StringVar(&g.Style, "s", "", "Style for printing (try Y or X)")
-	flag.IntVar(&f, "f", -1, "Focal ID")
+	flag.StringVar(&f, "f", "-1", "Focal ID")
 	flag.BoolVar(&g.StripUninf, "strip", false, "Strip offspring that do not contribute to Y test")
 	flag.Parse()
-	g.FocalID = int64(f)
+	g.FocalID = f
 	return g
 }
 

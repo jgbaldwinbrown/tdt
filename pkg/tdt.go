@@ -2,7 +2,6 @@ package tdt
 
 import (
 	"log"
-	"strconv"
 	"encoding/json"
 	"regexp"
 	"io"
@@ -45,22 +44,22 @@ func CondenseFamilies(fams ...Family) Family {
 
 type PedEntry struct {
 	FamilyID string
-	IndividualID int64
-	PaternalID int64
-	MaternalID int64
+	IndividualID string
+	PaternalID string
+	MaternalID string
 	Sex int64
 	Phenotype int64
 }
 
 type Node struct {
 	PedEntry
-	ChildIDs map[int64]struct{}
+	ChildIDs map[string]struct{}
 }
 
-func BuildPedTree(ps ...PedEntry) map[int64]Node {
-	tree := make(map[int64]Node, len(ps))
+func BuildPedTree(ps ...PedEntry) map[string]Node {
+	tree := make(map[string]Node, len(ps))
 	for _, p := range ps {
-		tree[p.IndividualID] = Node{PedEntry: p, ChildIDs: map[int64]struct{}{}}
+		tree[p.IndividualID] = Node{PedEntry: p, ChildIDs: map[string]struct{}{}}
 	}
 
 	for _, p := range ps {
@@ -76,7 +75,7 @@ func BuildPedTree(ps ...PedEntry) map[int64]Node {
 	return tree
 }
 
-func AddFam(fams []Family, indiv PedEntry, tree map[int64]Node) []Family {
+func AddFam(fams []Family, indiv PedEntry, tree map[string]Node) []Family {
 	var fam Family
 	node, ok := tree[indiv.IndividualID]
 	if !ok {
@@ -97,7 +96,7 @@ func AddFam(fams []Family, indiv PedEntry, tree map[int64]Node) []Family {
 	return append(fams, fam)
 }
 
-func HasY(p PedEntry, focalID int64, tree map[int64]Node) bool {
+func HasY(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID {
 		return true
 	}
@@ -116,14 +115,14 @@ func HasY(p PedEntry, focalID int64, tree map[int64]Node) bool {
 	return false
 }
 
-func DadHasY(p PedEntry, focalID int64, tree map[int64]Node) bool {
+func DadHasY(p PedEntry, focalID string, tree map[string]Node) bool {
 	if dad, ok := tree[p.PaternalID]; ok {
 		return HasY(dad.PedEntry, focalID, tree)
 	}
 	return false
 }
 
-func HasX(p PedEntry, focalID int64, tree map[int64]Node) bool {
+func HasX(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID {
 		return true
 	}
@@ -161,7 +160,7 @@ func HasX(p PedEntry, focalID int64, tree map[int64]Node) bool {
 	return false
 }
 
-func HasXFemDescent(p PedEntry, focalID int64, tree map[int64]Node) bool {
+func HasXFemDescent(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID {
 		return true
 	}
@@ -185,7 +184,7 @@ func HasXFemDescent(p PedEntry, focalID int64, tree map[int64]Node) bool {
 	return false
 }
 
-func HasAuto(p PedEntry, focalID int64, tree map[int64]Node) bool {
+func HasAuto(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID || p.PaternalID == focalID || p.MaternalID == focalID {
 		return true
 	}
@@ -198,7 +197,7 @@ func HasAuto(p PedEntry, focalID int64, tree map[int64]Node) bool {
 	return false
 }
 
-func BuildFamiliesY(focalID int64, ps ...PedEntry) []Family {
+func BuildFamiliesY(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -209,7 +208,7 @@ func BuildFamiliesY(focalID int64, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesX(focalID int64, ps ...PedEntry) []Family {
+func BuildFamiliesX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -220,7 +219,7 @@ func BuildFamiliesX(focalID int64, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesMaleX(focalID int64, ps ...PedEntry) []Family {
+func BuildFamiliesMaleX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -233,7 +232,7 @@ func BuildFamiliesMaleX(focalID int64, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesFemaleX(focalID int64, ps ...PedEntry) []Family {
+func BuildFamiliesFemaleX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -246,7 +245,7 @@ func BuildFamiliesFemaleX(focalID int64, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesFemDescentFemaleX(focalID int64, ps ...PedEntry) []Family {
+func BuildFamiliesFemDescentFemaleX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -259,7 +258,7 @@ func BuildFamiliesFemDescentFemaleX(focalID int64, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesAuto(focalID int64, ps ...PedEntry) []Family {
+func BuildFamiliesAuto(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -406,19 +405,19 @@ func FullTDTTestOld() {
 
 	dist := distuv.ChiSquared{K: 1}
 
-	xchi := ChiSqTrioMultiFamily(BuildFamiliesFemaleX(int64(*focal), peds...)...)
+	xchi := ChiSqTrioMultiFamily(BuildFamiliesFemaleX(string(*focal), peds...)...)
 	xp := 1 - dist.CDF(math.Abs(xchi))
 	fmt.Printf("xchi: %v; xp: %v\n", xchi, xp)
 
-	xchifemdescent := ChiSqTrioMultiFamily(BuildFamiliesFemDescentFemaleX(int64(*focal), peds...)...)
+	xchifemdescent := ChiSqTrioMultiFamily(BuildFamiliesFemDescentFemaleX(string(*focal), peds...)...)
 	xpfemdescent := 1 - dist.CDF(math.Abs(xchi))
 	fmt.Printf("fem descent xchi: %v; xp: %v\n", xchifemdescent, xpfemdescent)
 
-	ychi := ChiSqTrioMultiFamily(BuildFamiliesY(int64(*focal), peds...)...)
+	ychi := ChiSqTrioMultiFamily(BuildFamiliesY(string(*focal), peds...)...)
 	yp := 1 - dist.CDF(math.Abs(ychi))
 	fmt.Printf("ychi: %v; yp: %v\n", ychi, yp)
 
-	achi := ChiSqTrioMultiFamily(BuildFamiliesAuto(int64(*focal), peds...)...)
+	achi := ChiSqTrioMultiFamily(BuildFamiliesAuto(string(*focal), peds...)...)
 	ap := 1 - dist.CDF(math.Abs(achi))
 	fmt.Printf("achi: %v; ap: %v\n", achi, ap)
 }
@@ -437,46 +436,42 @@ func FullTDTTest() {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "\t")
 
-	res := TDTTest(BuildFamiliesFemaleX(int64(*focal), peds...)...)
+	res := TDTTest(BuildFamiliesFemaleX(string(*focal), peds...)...)
 	res.Name = "FemaleX"
 	err := enc.Encode(ToJson(res))
 	Must(err)
 
-	res = TDTTest(BuildFamiliesFemDescentFemaleX(int64(*focal), peds...)...)
+	res = TDTTest(BuildFamiliesFemDescentFemaleX(string(*focal), peds...)...)
 	res.Name = "FemDescentFemaleX"
 	err = enc.Encode(ToJson(res))
 	Must(err)
 
-	res = TDTTest(BuildFamiliesY(int64(*focal), peds...)...)
+	res = TDTTest(BuildFamiliesY(string(*focal), peds...)...)
 	res.Name = "Y"
 	err = enc.Encode(ToJson(res))
 	Must(err)
 
-	res = TDTTest(BuildFamiliesAuto(int64(*focal), peds...)...)
+	res = TDTTest(BuildFamiliesAuto(string(*focal), peds...)...)
 	res.Name = "Auto"
 	err = enc.Encode(ToJson(res))
 	Must(err)
 }
 
-func ReadLinesInts(path string) ([]int64, error) {
+func ReadLines(path string) ([]string, error) {
 	r, e := os.Open(path)
 	if e != nil {
 		return nil, e
 	}
 	defer r.Close()
 
-	var out []int64
+	var out []string
 	s := bufio.NewScanner(r)
 	s.Buffer([]byte{}, 1e12)
 	for s.Scan() {
 		if s.Err() != nil {
 			return nil, s.Err()
 		}
-		i, e := strconv.ParseInt(s.Text(), 0, 64)
-		if e != nil {
-			return nil, e
-		}
-		out = append(out, i)
+		out = append(out, s.Text())
 	}
 	return out, nil
 }
@@ -501,7 +496,7 @@ func FullMultiYTDTTest() {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t")
 
-	focals, e := ReadLinesInts(*focalPath)
+	focals, e := ReadLines(*focalPath)
 	Must(e)
 
 	for _, f := range focals {
