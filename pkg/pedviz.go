@@ -221,6 +221,11 @@ func (s *Set[T]) Contains(val T) bool {
 }
 
 func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[string], prevparentpair *Set[Int64Pair]) (n int, err error) {
+	labeltxt := `, label = ""`
+	if opts.LabelNumber {
+		labeltxt = ""
+	}
+
 	printit := ShouldPrint(p, focalID, tree, opts)
 	printparent := ShouldPrintAParent(p, focalID, tree, opts)
 	fmt.Fprintf(os.Stderr, "printit: %v; printparent: %v\n", printit, printparent)
@@ -236,12 +241,12 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 	if p.PaternalID != "0" && printparent && p.MaternalID != "0" {
 		if !prevparentpair.Contains(Int64Pair{p.PaternalID, p.MaternalID}) {
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "p%v ->px%vmx%v\np%v [style = filled%v, label = \"\"]\n", p.PaternalID, p.PaternalID, p.MaternalID, p.PaternalID, MaleAes())
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%vmx%v\np%v [style = filled%v%v]\n", p.PaternalID, p.PaternalID, p.MaternalID, p.PaternalID, MaleAes(), labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
 				}
-				nwritten, e = fmt.Fprintf(w, "p%v ->px%vmx%v\np%v [style = filled%v, label = \"\"]\n", p.MaternalID, p.PaternalID, p.MaternalID, p.MaternalID, MaleAes())
+				nwritten, e = fmt.Fprintf(w, "p%v ->px%vmx%v\np%v [style = filled%v%v]\n", p.MaternalID, p.PaternalID, p.MaternalID, p.MaternalID, FemAes(), labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -253,12 +258,12 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\", label = \"\"]\n", p.PaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\"%v]\n", p.PaternalID, labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
 				}
-				nwritten, e = fmt.Fprintf(w, "p%v [style = \"filled\", label = \"\"]\n", p.MaternalID)
+				nwritten, e = fmt.Fprintf(w, "p%v [style = \"filled\"%v]\n", p.MaternalID, labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -284,7 +289,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 	} else if p.PaternalID != "0" && printparent {
 		if !prevparent.Contains(p.PaternalID) {
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v, label = \"\"]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes())
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v%v]\n", p.PaternalID, p.PaternalID, p.PaternalID, MaleAes(), labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -296,7 +301,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\", label = \"\"]\n", p.PaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled\"%v]\n", p.PaternalID, labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -323,7 +328,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 		if !prevparent.Contains(p.MaternalID) {
 
 			if printit {
-				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v, label = \"\"]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes())
+				nwritten, e := fmt.Fprintf(w, "p%v ->px%v\np%v [style = filled%v%v]\n", p.MaternalID, p.MaternalID, p.MaternalID, FemAes(), labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -334,7 +339,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 					return n, e
 				}
 			} else {
-				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled,dashed\", label = \"\"]\n", p.MaternalID)
+				nwritten, e := fmt.Fprintf(w, "p%v [style = \"filled,dashed\"%v]\n", p.MaternalID, labeltxt)
 				n += nwritten
 				if e != nil {
 					return n, e
@@ -356,13 +361,13 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 		prevparent.Add(p.MaternalID)
 	}
 	if p.Sex == 1 && printit {
-		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v, label = \"\"]\n", p.IndividualID, MaleAes())
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v%v]\n", p.IndividualID, MaleAes(), labeltxt)
 		n += nwritten
 		if e != nil {
 			return n, e
 		}
 	} else if p.Sex == 2 && printit {
-		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v, label = \"\"]\n", p.IndividualID, FemAes())
+		nwritten, e := fmt.Fprintf(w, "p%v [style=filled%v%v]\n", p.IndividualID, FemAes(), labeltxt)
 		n += nwritten
 		if e != nil {
 			return n, e
@@ -480,6 +485,7 @@ type GraphVizOpts struct {
 	Style string
 	FocalID string
 	StripUninf bool
+	LabelNumber bool
 }
 
 func GetOpts() GraphVizOpts {
@@ -488,6 +494,7 @@ func GetOpts() GraphVizOpts {
 	flag.StringVar(&g.Style, "s", "", "Style for printing (try Y or X)")
 	flag.StringVar(&f, "f", "-1", "Focal ID")
 	flag.BoolVar(&g.StripUninf, "strip", false, "Strip offspring that do not contribute to Y test")
+	flag.BoolVar(&g.LabelNumber, "l", false, "Add number labels to nodes")
 	flag.Parse()
 	g.FocalID = f
 	return g
