@@ -514,6 +514,7 @@ func FullMultiYTDTTest() {
 func FullAllYTDTTest() {
 	pedPath := flag.String("i", "", "path to input .ped file")
 	outPath := flag.String("o", "", "path to write output")
+	focalID := flag.String("f", "", "IndividualID for focal individual (default is to do TDT for all males)")
 	flag.Parse()
 	if *pedPath == "" {
 		log.Fatal(fmt.Errorf("missing -i"))
@@ -540,24 +541,31 @@ func FullAllYTDTTest() {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t")
 
-	orphanFocal, nonOrphanFocal := FindFocals(peds...)
+	if *focalID == "" {
+		orphanFocal, nonOrphanFocal := FindFocals(peds...)
 
-	i := 0
-	for _, f := range orphanFocal {
-		res := TDTTest(BuildFamiliesY(f.IndividualID, peds...)...)
-		res.Name = fmt.Sprint(i)
-		res.Orphan = true
+		i := 0
+		for _, f := range orphanFocal {
+			res := TDTTest(BuildFamiliesY(f.IndividualID, peds...)...)
+			res.Name = fmt.Sprint(i)
+			res.Orphan = true
+			err := enc.Encode(ToJson(res))
+			Must(err)
+			i++
+		}
+
+		for _, f := range nonOrphanFocal {
+			res := TDTTest(BuildFamiliesY(f.IndividualID, peds...)...)
+			res.Name = fmt.Sprint(i)
+			res.Orphan = false
+			err := enc.Encode(ToJson(res))
+			Must(err)
+			i++
+		}
+	} else {
+		res := TDTTest(BuildFamiliesY(*focalID, peds...)...)
+		res.Name = "0"
 		err := enc.Encode(ToJson(res))
 		Must(err)
-		i++
-	}
-
-	for _, f := range nonOrphanFocal {
-		res := TDTTest(BuildFamiliesY(f.IndividualID, peds...)...)
-		res.Name = fmt.Sprint(i)
-		res.Orphan = false
-		err := enc.Encode(ToJson(res))
-		Must(err)
-		i++
 	}
 }
