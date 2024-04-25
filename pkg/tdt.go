@@ -470,7 +470,7 @@ func ReadLines(path string) ([]string, error) {
 
 	var out []string
 	s := bufio.NewScanner(r)
-	s.Buffer([]byte{}, 1e12)
+	s.Buffer([]byte{}, 1e9)
 	for s.Scan() {
 		if s.Err() != nil {
 			return nil, s.Err()
