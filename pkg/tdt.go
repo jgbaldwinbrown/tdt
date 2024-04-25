@@ -12,6 +12,7 @@ import (
 	"strings"
 	"fmt"
 	"gonum.org/v1/gonum/stat/distuv"
+	"github.com/jgbaldwinbrown/csvh"
 )
 
 func ChiSqTrio(b, c float64) float64 {
@@ -335,6 +336,7 @@ type TDTResult struct {
 	MeanChildrenPerFam float64
 	Chisq float64
 	P float64
+	Orphan bool
 }
 
 func TDTTest(fams ...Family) TDTResult {
@@ -366,6 +368,7 @@ type TDTResultJson struct {
 	MeanChildrenPerFam any
 	Chisq any
 	P any
+	Orphan bool
 }
 
 func FloatToJson(f float64) any {
@@ -390,6 +393,7 @@ func ToJson(r TDTResult) TDTResultJson {
 	j.MeanChildrenPerFam = FloatToJson(r.MeanChildrenPerFam)
 	j.Chisq = FloatToJson(r.Chisq)
 	j.P = FloatToJson(r.P)
+	j.Orphan = r.Orphan
 	return j
 }
 
@@ -504,5 +508,56 @@ func FullMultiYTDTTest() {
 		res.Name = fmt.Sprint(f)
 		err := enc.Encode(ToJson(res))
 		Must(err)
+	}
+}
+
+func FullAllYTDTTest() {
+	pedPath := flag.String("i", "", "path to input .ped file")
+	outPath := flag.String("o", "", "path to write output")
+	flag.Parse()
+	if *pedPath == "" {
+		log.Fatal(fmt.Errorf("missing -i"))
+	}
+	if *outPath == "" {
+		log.Fatal(fmt.Errorf("missing -o"))
+	}
+
+	r, e := csvh.OpenMaybeGz(*pedPath)
+	Must(e)
+	defer r.Close()
+	peds, e := ParsePedSafe(r)
+	Must(e)
+
+	ww, e := csvh.CreateMaybeGz(*outPath)
+	Must(e)
+	defer func() {
+		Must(ww.Close())
+	}()
+	w := bufio.NewWriter(ww)
+	defer func() {
+		Must(w.Flush())
+	}()
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "\t")
+
+	orphanFocal, nonOrphanFocal := FindFocals(peds...)
+
+	i := 0
+	for _, f := range orphanFocal {
+		res := TDTTest(BuildFamiliesY(f.IndividualID, peds...)...)
+		res.Name = fmt.Sprint(i)
+		res.Orphan = true
+		err := enc.Encode(ToJson(res))
+		Must(err)
+		i++
+	}
+
+	for _, f := range nonOrphanFocal {
+		res := TDTTest(BuildFamiliesY(f.IndividualID, peds...)...)
+		res.Name = fmt.Sprint(i)
+		res.Orphan = false
+		err := enc.Encode(ToJson(res))
+		Must(err)
+		i++
 	}
 }
