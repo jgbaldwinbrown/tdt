@@ -57,13 +57,57 @@ type Node struct {
 	ChildIDs map[string]struct{}
 }
 
-func BuildPedTree(ps ...PedEntry) map[string]Node {
+func BuildPedTreeInconsistent(ps ...PedEntry) map[string]Node {
 	tree := make(map[string]Node, len(ps))
 	for _, p := range ps {
 		tree[p.IndividualID] = Node{PedEntry: p, ChildIDs: map[string]struct{}{}}
 	}
 
 	for _, p := range ps {
+		if dad, ok := tree[p.PaternalID]; ok {
+			dad.ChildIDs[p.IndividualID] = struct{}{}
+			tree[p.PaternalID] = dad
+		}
+		if mom, ok := tree[p.MaternalID]; ok {
+			mom.ChildIDs[p.IndividualID] = struct{}{}
+			tree[p.MaternalID] = mom
+		}
+	}
+	return tree
+}
+
+func UpdateNode(n Node, p PedEntry) (Node, error) {
+	var err error
+	if n.PedEntry != p {
+		err = fmt.Errorf("n.PedEntry %#v != p %#v", n.PedEntry, p)
+	}
+	if n.PaternalID == "999999" || n.PaternalID == "0" {
+		n.PaternalID = p.PaternalID
+	}
+	if n.MaternalID == "999999" || n.MaternalID == "0" {
+		n.MaternalID = p.MaternalID
+	}
+	return n, err
+}
+
+func BuildPedTree(ps ...PedEntry) map[string]Node {
+	tree := make(map[string]Node, len(ps))
+	for _, p := range ps {
+		node, ok := tree[p.IndividualID]
+		if !ok {
+			tree[p.IndividualID] = Node{PedEntry: p, ChildIDs: map[string]struct{}{}}
+			continue
+		}
+
+		node, err := UpdateNode(node, p)
+		if err != nil {
+			log.Println(err)
+		}
+		tree[p.IndividualID] = node
+	}
+
+	for _, node := range tree {
+		p := node.PedEntry
 		if dad, ok := tree[p.PaternalID]; ok {
 			dad.ChildIDs[p.IndividualID] = struct{}{}
 			tree[p.PaternalID] = dad
@@ -198,7 +242,7 @@ func HasAuto(p PedEntry, focalID string, tree map[string]Node) bool {
 	return false
 }
 
-func BuildFamiliesY(focalID string, ps ...PedEntry) []Family {
+func BuildFamiliesInconsistentY(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -209,7 +253,19 @@ func BuildFamiliesY(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesX(focalID string, ps ...PedEntry) []Family {
+func BuildFamiliesY(focalID string, ps ...PedEntry) []Family {
+	tree := BuildPedTree(ps...)
+	var fams []Family
+	for _, node := range tree {
+		p := node.PedEntry
+		if HasY(p, focalID, tree) {
+			fams = AddFam(fams, p, tree)
+		}
+	}
+	return fams
+}
+
+func BuildFamiliesInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -220,7 +276,19 @@ func BuildFamiliesX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesMaleX(focalID string, ps ...PedEntry) []Family {
+func BuildFamiliesX(focalID string, ps ...PedEntry) []Family {
+	tree := BuildPedTree(ps...)
+	var fams []Family
+	for _, node := range tree {
+		p := node.PedEntry
+		if HasX(p, focalID, tree) {
+			fams = AddFam(fams, p, tree)
+		}
+	}
+	return fams
+}
+
+func BuildFamiliesMaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -233,7 +301,21 @@ func BuildFamiliesMaleX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesFemaleX(focalID string, ps ...PedEntry) []Family {
+func BuildFamiliesMaleX(focalID string, ps ...PedEntry) []Family {
+	tree := BuildPedTree(ps...)
+	var fams []Family
+	for _, node := range tree {
+		p := node.PedEntry
+		if HasX(p, focalID, tree) {
+			if p.Sex == 1 {
+				fams = AddFam(fams, p, tree)
+			}
+		}
+	}
+	return fams
+}
+
+func BuildFamiliesFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -246,7 +328,21 @@ func BuildFamiliesFemaleX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesFemDescentFemaleX(focalID string, ps ...PedEntry) []Family {
+func BuildFamiliesFemaleX(focalID string, ps ...PedEntry) []Family {
+	tree := BuildPedTree(ps...)
+	var fams []Family
+	for _, node := range tree {
+		p := node.PedEntry
+		if HasX(p, focalID, tree) {
+			if p.Sex == 2 {
+				fams = AddFam(fams, p, tree)
+			}
+		}
+	}
+	return fams
+}
+
+func BuildFamiliesFemDescentFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -259,10 +355,36 @@ func BuildFamiliesFemDescentFemaleX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesAuto(focalID string, ps ...PedEntry) []Family {
+func BuildFamiliesFemDescentFemaleX(focalID string, ps ...PedEntry) []Family {
+	tree := BuildPedTree(ps...)
+	var fams []Family
+	for _, node := range tree {
+		p := node.PedEntry
+		if HasXFemDescent(p, focalID, tree) {
+			if p.Sex == 2 {
+				fams = AddFam(fams, p, tree)
+			}
+		}
+	}
+	return fams
+}
+
+func BuildFamiliesInconsistentAuto(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
+		if HasAuto(p, focalID, tree) {
+			fams = AddFam(fams, p, tree)
+		}
+	}
+	return fams
+}
+
+func BuildFamiliesAuto(focalID string, ps ...PedEntry) []Family {
+	tree := BuildPedTree(ps...)
+	var fams []Family
+	for _, node := range tree {
+		p := node.PedEntry
 		if HasAuto(p, focalID, tree) {
 			fams = AddFam(fams, p, tree)
 		}

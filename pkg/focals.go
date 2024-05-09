@@ -8,9 +8,25 @@ func HasFather(p PedEntry, tree map[string]Node) bool {
 	return ok
 }
 
-func FindFocals(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEntry) {
+func FindFocalsInconsistent(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEntry) {
 	tree := BuildPedTree(ped...)
 	for _, p := range ped {
+		if p.Sex != 1 {
+			continue
+		}
+		if !HasFather(p, tree) {
+			orphanFocal = append(orphanFocal, p)
+		} else {
+			nonOrphanFocal = append(nonOrphanFocal, p)
+		}
+	}
+	return orphanFocal, nonOrphanFocal
+}
+
+func FindFocals(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEntry) {
+	tree := BuildPedTree(ped...)
+	for _, node := range tree {
+		p := node.PedEntry
 		if p.Sex != 1 {
 			continue
 		}
