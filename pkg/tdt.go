@@ -79,7 +79,7 @@ func BuildPedTreeInconsistent(ps ...PedEntry) map[string]Node {
 func UpdateNode(n Node, p PedEntry) (Node, error) {
 	var err error
 	if n.PedEntry != p {
-		err = fmt.Errorf("n.PedEntry %#v != p %#v", n.PedEntry, p)
+		// err = fmt.Errorf("n.PedEntry %#v != p %#v", n.PedEntry, p)
 	}
 	if n.PaternalID == "999999" || n.PaternalID == "0" {
 		n.PaternalID = p.PaternalID

@@ -86,9 +86,13 @@ type NamedCluster struct {
 }
 
 func (c NamedCluster) MaleFrac() float64 {
+	return MaleFrac(c.Cluster)
+}
+
+func MaleFrac(ps []PedEntry) float64 {
 	nmales := 0
 	printit := false
-	for _, pe := range c.Cluster {
+	for _, pe := range ps {
 		if pe.Sex == 1 {
 			nmales++
 		}
@@ -97,9 +101,9 @@ func (c NamedCluster) MaleFrac() float64 {
 		}
 	}
 	if printit {
-		fmt.Fprintln(os.Stderr, "16 family:", c)
+		fmt.Fprintln(os.Stderr, "16 family:", ps)
 	}
-	return float64(nmales) / float64(len(c.Cluster))
+	return float64(nmales) / float64(len(ps))
 }
 
 func SortClusters(clusters map[string][]PedEntry) []NamedCluster {
