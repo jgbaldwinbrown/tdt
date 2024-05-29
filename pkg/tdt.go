@@ -503,6 +503,23 @@ func FloatToJson(f float64) any {
 	return f
 }
 
+func JsonToFloat(a any) float64 {
+	switch f := a.(type) {
+	case float64:
+		return f
+	case string:
+		if f == "NaN" {
+			return math.NaN()
+		}
+		if f == "Infinity" {
+			return math.Inf(1)
+		}
+	default:
+		log.Fatal("could not convert %v to float", f)
+	}
+	return 0.0
+}
+
 func ToJson(r TDTResult) TDTResultJson {
 	var j TDTResultJson
 	j.Name = r.Name
@@ -515,6 +532,22 @@ func ToJson(r TDTResult) TDTResultJson {
 	j.MeanChildrenPerFam = FloatToJson(r.MeanChildrenPerFam)
 	j.Chisq = FloatToJson(r.Chisq)
 	j.P = FloatToJson(r.P)
+	j.Orphan = r.Orphan
+	return j
+}
+
+func FromJson(r TDTResultJson) TDTResult {
+	var j TDTResult
+	j.Name = r.Name
+	j.Totals.MaleF1 = JsonToFloat(r.TotalMales)
+	j.Totals.FemaleF1 = JsonToFloat(r.TotalFemales)
+	j.Nfamilies = JsonToFloat(r.Nfamilies)
+	j.MaleProportion = JsonToFloat(r.MaleProportion)
+	j.MeanMalesPerFam = JsonToFloat(r.MeanMalesPerFam)
+	j.MeanFemalesPerFam = JsonToFloat(r.MeanFemalesPerFam)
+	j.MeanChildrenPerFam = JsonToFloat(r.MeanChildrenPerFam)
+	j.Chisq = JsonToFloat(r.Chisq)
+	j.P = JsonToFloat(r.P)
 	j.Orphan = r.Orphan
 	return j
 }
