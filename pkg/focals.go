@@ -38,3 +38,12 @@ func FindFocals(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEn
 	}
 	return orphanFocal, nonOrphanFocal
 }
+
+func UniqPed(ped ...PedEntry) []PedEntry {
+	tree := BuildPedTree(ped...)
+	out := make([]PedEntry, 0, len(tree))
+	for _, node := range tree {
+		out = append(out, node.PedEntry)
+	}
+	return out
+}
