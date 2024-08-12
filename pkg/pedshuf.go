@@ -30,6 +30,7 @@ type ShufPedSexFlags struct {
 	Outpre string
 	Reps int
 	Seed int
+	ShufPhenos bool
 }
 
 func ParsePedPathMaybe(path string) ([]PedEntry, error) {
@@ -82,6 +83,7 @@ func FullShufPedSex() {
 	flag.StringVar(&f.Outpre, "o", "shuf_ped_sex_out", "output prefix")
 	flag.IntVar(&f.Reps, "r", 1, "shuffle replicates")
 	flag.IntVar(&f.Seed, "s", 0, "random seed")
+	flag.BoolVar(&f.ShufPhenos, "p", false, "huffle phenotype instead of sex")
 	flag.Parse()
 
 	ps, e := ParsePedPathMaybe(f.Inpath)
@@ -93,7 +95,11 @@ func FullShufPedSex() {
 	r := rand.New(rand.NewSource(int64(f.Seed)))
 
 	for i := 0; i < f.Reps; i++ {
-		ShufPedSex(ps, r)
+		if f.ShufPhenos {
+			ShufPedPheno(ps, r)
+		} else {
+			ShufPedSex(ps, r)
+		}
 		opath := fmt.Sprintf("%v_%v.ped.gz", f.Outpre, i)
 		if e := WritePedPath(opath, ps); e != nil {
 			log.Fatal(e)
