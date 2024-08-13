@@ -43,7 +43,7 @@ func ParsePedPathMaybe(path string) ([]PedEntry, error) {
 		defer f.Close()
 		r = f
 	}
-	return ParsePed(r)
+	return ParsePedFromReader(r)
 }
 
 func WritePedEntry(w io.Writer, p PedEntry) error {

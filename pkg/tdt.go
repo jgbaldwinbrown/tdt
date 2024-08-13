@@ -422,7 +422,7 @@ func ShouldSkipPedLine(line string) bool {
 	return skipRe.MatchString(line)
 }
 
-func ParsePed(r io.Reader) ([]PedEntry, error) {
+func ParsePedFromReader(r io.Reader) ([]PedEntry, error) {
 	s := bufio.NewScanner(r)
 	var ps []PedEntry
 	for s.Scan() {
@@ -559,7 +559,7 @@ func FullTDTTestOld() {
 		panic(fmt.Errorf("missing -f"))
 	}
 
-	peds, e := ParsePed(os.Stdin)
+	peds, e := ParsePedFromReader(os.Stdin)
 	Must(e)
 
 	dist := distuv.ChiSquared{K: 1}
@@ -589,7 +589,7 @@ func FullTDTTest() {
 		panic(fmt.Errorf("missing -f"))
 	}
 
-	peds, e := ParsePed(os.Stdin)
+	peds, e := ParsePedFromReader(os.Stdin)
 	Must(e)
 
 	enc := json.NewEncoder(os.Stdout)
@@ -642,7 +642,7 @@ func FullMultiYTDTTest() {
 		log.Fatal(fmt.Errorf("missing -f"))
 	}
 
-	peds, e := ParsePed(os.Stdin)
+	peds, e := ParsePedFromReader(os.Stdin)
 	Must(e)
 
 	w := bufio.NewWriter(os.Stdout)

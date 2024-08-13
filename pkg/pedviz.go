@@ -506,7 +506,7 @@ func GetOpts() GraphVizOpts {
 
 func FullToGraphViz() {
 	opts := GetOpts()
-	ps, e := ParsePed(os.Stdin)
+	ps, e := ParsePedFromReader(os.Stdin)
 	if e != nil {
 		panic(e)
 	}

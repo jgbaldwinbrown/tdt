@@ -43,7 +43,7 @@ func FullExtract() {
 	flag.StringVar(&f.FocalID, "f", "", "ID to extract")
 	flag.Parse()
 
-	ped, e := ParsePed(os.Stdin)
+	ped, e := ParsePedFromReader(os.Stdin)
 	if e != nil {
 		log.Fatal(e)
 	}
