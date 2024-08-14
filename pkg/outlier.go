@@ -1,6 +1,8 @@
 package tdt
 
 import (
+	"cmp"
+	"slices"
 	"log"
 	"errors"
 	"fmt"
@@ -125,6 +127,21 @@ func GetBiggestOutlier(it iter.Seq[Entry]) Entry {
 	return best
 }
 
+func GetBiggestOutliers(it iter.Seq[Entry], n int) []Entry {
+	all := slices.SortedFunc(it, iterh.Negative(func(a, b Entry) int {
+		if a.Posterior < b.Posterior {
+			return -1
+		} else if a.Posterior > b.Posterior {
+			return 1
+		}
+		return 0
+	}))
+	if len(all) < n {
+		return all
+	}
+	return all[:n]
+}
+
 func GetBiggestOutlierPath(path string, header bool) (Entry, error) {
 	r, e := csvh.OpenMaybeGz(path)
 	if e != nil {
@@ -137,10 +154,33 @@ func GetBiggestOutlierPath(path string, header bool) (Entry, error) {
 	return best, e
 }
 
+func GetBiggestOutliersPath(path string, header bool, n int) ([]Entry, error) {
+	r, e := csvh.OpenMaybeGz(path)
+	if e != nil {
+		return nil, e
+	}
+	defer r.Close()
+
+	it := iterh.BreakOnError(ParsePed(r, header), &e)
+	best := GetBiggestOutliers(it, n)
+	return best, e
+}
+
 func GetBiggestOutlierPaths(paths iter.Seq[string], header bool) iter.Seq2[Entry, error] {
 	return func(y func(Entry, error) bool) {
 		for path := range paths {
 			bgOutlier, e := GetBiggestOutlierPath(path, header)
+			if !y(bgOutlier, e) {
+				return
+			}
+		}
+	}
+}
+
+func GetBiggestOutliersPaths(paths iter.Seq[string], header bool, n int) iter.Seq2[[]Entry, error] {
+	return func(y func([]Entry, error) bool) {
+		for path := range paths {
+			bgOutlier, e := GetBiggestOutliersPath(path, header, n)
 			if !y(bgOutlier, e) {
 				return
 			}
@@ -158,6 +198,17 @@ func BiggestOutlierPerc(realOutlier Entry, bgOutliers iter.Seq[Entry]) float64 {
 		}
 	}
 	return float64(biggerCount) / float64(totalCount)
+}
+
+func PosteriorMeans(it iter.Seq[[]Entry]) iter.Seq2[float64, error] {
+	return func(y func(float64, error) bool) {
+		for ents := range it {
+			m, e := stats.Mean(slices.Collect(Posteriors(slices.Values(ents))))
+			if !y(m, e) {
+				return
+			}
+		}
+	}
 }
 
 func GetBiggestOutlierAvg(bgOutliers iter.Seq[Entry]) float64 {
@@ -190,6 +241,23 @@ func GetAllBestZscores(its iter.Seq[iter.Seq2[Entry, error]]) ([]float64, error)
 			return nil, e
 		}
 		best := iterh.Max(iterh.SliceIter(zs))
+		bests = append(bests, best)
+	}
+	return bests, nil
+}
+
+func GetAllBestZscoresTopN(its iter.Seq[iter.Seq2[Entry, error]], n int) ([][]float64, error) {
+	var bests [][]float64
+	for it := range its {
+		ents, e := iterh.CollectWithError(it)
+		if e != nil {
+			return nil, e
+		}
+		zs, e := GetZscores(ents)
+		if e != nil {
+			return nil, e
+		}
+		best := TopN(iterh.SliceIter(zs), n)
 		bests = append(bests, best)
 	}
 	return bests, nil
@@ -253,12 +321,44 @@ func RankStats(id string, realPed iter.Seq[Entry], bgPeds iter.Seq[iter.Seq2[Ent
 	return chosenRank, chosenInternalRank, bgRanks, nil
 }
 
+func Posteriors(it iter.Seq[Entry]) iter.Seq[float64] {
+	return iterh.Transform(it, func(ent Entry) float64 {
+		return ent.Posterior
+	})
+}
+
+func TopNFunc[T any](it iter.Seq[T], cmpf func(T, T) int, n int) []T {
+	sorted := slices.SortedFunc(it, cmpf)
+	if len(sorted) < n {
+		return sorted
+	}
+	return sorted[:n]
+}
+
+func TopN[T cmp.Ordered](it iter.Seq[T], n int) []T {
+	return TopNFunc(it, cmp.Compare, n)
+}
+
 type Flags struct {
 	RealPath string
 	RealHeader bool
 	BgPathsPath string
 	BgHeader bool
 	Chosen string
+	TopN int
+}
+
+// bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
+func GetBgZScoresMeans(bgZScores [][]float64) ([]float64, error) {
+	out := make([]float64, 0, len(bgZScores))
+	for _, set := range bgZScores {
+		m, e := stats.Mean(set)
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 func RunOutlier() {
@@ -268,6 +368,7 @@ func RunOutlier() {
 	flag.StringVar(&f.Chosen, "c", "", "Chosen individual ID to run rank order statistics on")
 	flag.BoolVar(&f.RealHeader, "rh", false, "Real data has a header line")
 	flag.BoolVar(&f.BgHeader, "bh", false, "Background data has a header line")
+	flag.IntVar(&f.TopN, "t", -1, "Top number of individuals to average to get score (default 1)")
 	
 	flag.Parse()
 	if f.RealPath == "" {
@@ -282,24 +383,55 @@ func RunOutlier() {
 		log.Fatal(e)
 	}
 
-	realOutlier := GetBiggestOutlier(iterh.SliceIter(realEntries))
-
 	bgPaths := iterh.Collect(iterh.BreakOnError(iterh.PathIter(f.BgPathsPath, iterh.LineIter), &e))
 	if e != nil {
 		log.Fatal(e)
 	}
 
-	bgOutliersSeq := iterh.BreakOnError(GetBiggestOutlierPaths(iterh.SliceIter[[]string](bgPaths), f.BgHeader), &e)
-	bgOutliers := iterh.Collect(bgOutliersSeq)
-	if e != nil {
-		log.Fatal(e)
+	if (f.TopN == -1) {
+		realOutlier := GetBiggestOutlier(iterh.SliceIter(realEntries))
+
+		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutlierPaths(iterh.SliceIter[[]string](bgPaths), f.BgHeader), &e)
+		bgOutliers := iterh.Collect(bgOutliersSeq)
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		frac := BiggestOutlierPerc(realOutlier, iterh.SliceIter(bgOutliers))
+		fmt.Println("biggest outlier percentage:", frac)
+
+		bgAvg := GetBiggestOutlierAvg(iterh.SliceIter(bgOutliers))
+		fmt.Println("backgrount biggest average:", bgAvg)
+	} else {
+		realOutliers := GetBiggestOutliers(iterh.SliceIter(realEntries), f.TopN)
+		realOutliersMean, e := stats.Mean(slices.Collect(Posteriors(slices.Values(realOutliers))))
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutliersPaths(iterh.SliceIter[[]string](bgPaths), f.BgHeader, f.TopN), &e)
+		bgOutliers := iterh.Collect(bgOutliersSeq)
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		bgOutliersMeans, e := iterh.CollectWithError(PosteriorMeans(slices.Values(bgOutliers)))
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		frac, _, _ := iterh.Rank(realOutliersMean, slices.Values(bgOutliersMeans))
+		if e != nil {
+			log.Fatal(e)
+		}
+		fmt.Println("biggest outlier percentage:", frac)
+
+		bgAvg, e := stats.Mean(bgOutliersMeans)
+		if e != nil {
+			log.Fatal(e)
+		}
+		fmt.Println("backgrount biggest average:", bgAvg)
 	}
-
-	frac := BiggestOutlierPerc(realOutlier, iterh.SliceIter(bgOutliers))
-	fmt.Println("biggest outlier percentage:", frac)
-
-	bgAvg := GetBiggestOutlierAvg(iterh.SliceIter(bgOutliers))
-	fmt.Println("backgrount biggest average:", bgAvg)
 
 
 	if f.Chosen != "" {
@@ -314,18 +446,42 @@ func RunOutlier() {
 		fmt.Printf("chosenRank %v; chosenInternalRank %v; meanBgRank %v\n", chosenRank, chosenInternalRank, meanBgRank)
 	}
 
-	realZs, e := GetZscores(realEntries)
-	if e != nil {
-		log.Fatal(e)
-	}
-	realHighestZ := iterh.Max(iterh.SliceIter(realZs))
-	bgZScores, e := GetAllBestZscores(ParsePedPaths(f.BgHeader, bgPaths...))
-	if e != nil {
-		log.Fatal(e)
-	}
+	if f.TopN == -1 {
+		realZs, e := GetZscores(realEntries)
+		if e != nil {
+			log.Fatal(e)
+		}
+		realHighestZ := iterh.Max(iterh.SliceIter(realZs))
+		bgZScores, e := GetAllBestZscores(ParsePedPaths(f.BgHeader, bgPaths...))
+		if e != nil {
+			log.Fatal(e)
+		}
 
-	zrankperc, zhigher, ztotal := iterh.Rank(realHighestZ, iterh.SliceIter(bgZScores))
-	fmt.Printf("realHighestZ %v; zrankperc %v; zhigher %v; ztotal %v\n", realHighestZ, zrankperc, zhigher, ztotal)
+		zrankperc, zhigher, ztotal := iterh.Rank(realHighestZ, iterh.SliceIter(bgZScores))
+		fmt.Printf("realHighestZ %v; zrankperc %v; zhigher %v; ztotal %v\n", realHighestZ, zrankperc, zhigher, ztotal)
+	} else {
+		realZs, e := GetZscores(realEntries)
+		if e != nil {
+			log.Fatal(e)
+		}
+		realHighestZs := TopN(iterh.SliceIter(realZs), f.TopN)
+		realHighestZsMean, e := stats.Mean(realHighestZs)
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		bgZScores, e := GetAllBestZscoresTopN(ParsePedPaths(f.BgHeader, bgPaths...), f.TopN)
+		if e != nil {
+			log.Fatal(e)
+		}
+		bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		zrankperc, zhigher, ztotal := iterh.Rank(realHighestZsMean, iterh.SliceIter(bgZScoresMeans))
+		fmt.Printf("realHighestZ %v; zrankperc %v; zhigher %v; ztotal %v\n", realHighestZsMean, zrankperc, zhigher, ztotal)
+	}
 }
 
 // family - Family ID
