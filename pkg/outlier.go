@@ -12,6 +12,7 @@ import (
 	"io"
 	"iter"
 	"github.com/montanaflynn/stats"
+	stat "github.com/jgbaldwinbrown/perf/pkg/stats"
 )
 
 type Entry struct {
@@ -444,6 +445,12 @@ func RunOutlier() {
 			log.Fatal(e)
 		}
 		fmt.Printf("chosenRank %v; chosenInternalRank %v; meanBgRank %v\n", chosenRank, chosenInternalRank, meanBgRank)
+		sample := stat.Sample{Xs: bgRanks}
+		res, e := stat.OneSampleTTest(sample, 0.5, 0)
+		if e != nil {
+			log.Fatal(e)
+		}
+		fmt.Printf("t test results: %#v\n", res)
 	}
 
 	if f.TopN == -1 {
