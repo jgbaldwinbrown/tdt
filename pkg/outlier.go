@@ -336,7 +336,7 @@ func TopNFunc[T any](it iter.Seq[T], cmpf func(T, T) int, n int) []T {
 }
 
 func TopN[T cmp.Ordered](it iter.Seq[T], n int) []T {
-	return TopNFunc(it, cmp.Compare, n)
+	return TopNFunc(it, iterh.Negative[T](cmp.Compare), n)
 }
 
 type Flags struct {
