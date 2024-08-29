@@ -10,6 +10,7 @@ require (
 
 require (
 	github.com/jgbaldwinbrown/iterh v0.1.5
+	github.com/jgbaldwinbrown/kolm v0.0.0-20240829204201-e08fac74f9e9
 	github.com/jgbaldwinbrown/perf v0.1.1
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
