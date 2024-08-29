@@ -1,8 +1,8 @@
 package tdt
 
 import (
-	"io"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -69,41 +69,54 @@ func ToGraphVizX(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err err
 
 	nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
-	if e != nil { return n, e }
+	if e != nil {
+		return n, e
+	}
 
 	for _, p := range unclustered {
 		nwritten, e := fmt.Fprintf(w, "p%v\n", p.IndividualID)
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 	}
 
 	for _, cps := range clusters {
 		cid := cps.ID
 		nwritten, e := fmt.Fprintf(w, "subgraph cluster_%v {\n", cid)
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 
 		for _, p := range cps.Cluster {
 			nwritten, e := PedEntryToGraphVizX(w, f, tree, p)
 			n += nwritten
-			if e != nil { return n, e }
+			if e != nil {
+				return n, e
+			}
 		}
 
 		nwritten, e = fmt.Fprintf(w, "}\n")
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 	}
 
 	for _, p := range unclustered {
 		nwritten, e := PedEntryToGraphVizX(w, f, tree, p)
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 	}
 
 	nwritten, e = fmt.Fprintf(w, "}\n")
 	n += nwritten
-	if e != nil { return n, e }
+	if e != nil {
+		return n, e
+	}
 
 	return n, nil
 }
-

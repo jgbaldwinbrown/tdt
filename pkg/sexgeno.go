@@ -2,8 +2,8 @@ package tdt
 
 import (
 	"fmt"
-	"io"
 	"github.com/jgbaldwinbrown/csvh"
+	"io"
 	"math/rand"
 )
 

@@ -1,11 +1,11 @@
 package tdt
 
 import (
-	"sort"
 	"flag"
+	"fmt"
 	"io"
 	"os"
-	"fmt"
+	"sort"
 )
 
 func Red() string {
@@ -81,7 +81,7 @@ func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 }
 
 type NamedCluster struct {
-	ID string
+	ID      string
 	Cluster []PedEntry
 }
 
@@ -234,13 +234,12 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 	printparent := ShouldPrintAParent(p, focalID, tree, opts)
 	fmt.Fprintf(os.Stderr, "printit: %v; printparent: %v\n", printit, printparent)
 
-	if (!printit) {
-		if ((prevparent.Contains(p.MaternalID) || p.MaternalID == "0") &&
-			(prevparent.Contains(p.PaternalID) || p.PaternalID == "0")) {
+	if !printit {
+		if (prevparent.Contains(p.MaternalID) || p.MaternalID == "0") &&
+			(prevparent.Contains(p.PaternalID) || p.PaternalID == "0") {
 			return n, err
 		}
 	}
-
 
 	if p.PaternalID != "0" && printparent && p.MaternalID != "0" {
 		if !prevparentpair.Contains(Int64Pair{p.PaternalID, p.MaternalID}) {
@@ -388,14 +387,17 @@ type PedEncodeFunc func(w io.Writer, focalID string, tree map[string]Node, p Ped
 
 func GetStylePedFunc(style string) PedEncodeFunc {
 	switch style {
-	case "YShape": return PedEntryToGraphVizYShape
-	case "Y": return PedEntryToGraphVizY
-	default: return PedEntryToGraphVizY
+	case "YShape":
+		return PedEntryToGraphVizYShape
+	case "Y":
+		return PedEntryToGraphVizY
+	default:
+		return PedEntryToGraphVizY
 	}
 }
 
 func Percentify(f float64) string {
-	return fmt.Sprintf("%.0f%%", f * 100.0)
+	return fmt.Sprintf("%.0f%%", f*100.0)
 }
 
 type Int64Pair struct {
@@ -425,13 +427,17 @@ edge [dir = none];
 
 	// nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
-	if e != nil { return n, e }
+	if e != nil {
+		return n, e
+	}
 
 	for _, p := range unclustered {
 		if ShouldPrint(p, f, tree, opts) {
 			nwritten, e := fmt.Fprintf(w, "p%v\n", p.IndividualID)
 			n += nwritten
-			if e != nil { return n, e }
+			if e != nil {
+				return n, e
+			}
 		}
 	}
 
@@ -446,28 +452,38 @@ labelloc = "l"
 graph [color = "#888888"]
 `, cid, Percentify(malefrac))
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 
 		for _, p := range cps.Cluster {
 			nwritten, e := pedfunc(w, f, tree, p, opts, prevparent, prevparentpair)
 			n += nwritten
-			if e != nil { return n, e }
+			if e != nil {
+				return n, e
+			}
 		}
 
 		nwritten, e = fmt.Fprintf(w, "}\n")
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 	}
 
 	for _, p := range unclustered {
 		nwritten, e := pedfunc(w, f, tree, p, opts, prevparent, prevparentpair)
 		n += nwritten
-		if e != nil { return n, e }
+		if e != nil {
+			return n, e
+		}
 	}
 
 	nwritten, e = fmt.Fprintf(w, "}\n")
 	n += nwritten
-	if e != nil { return n, e }
+	if e != nil {
+		return n, e
+	}
 
 	return n, nil
 }
@@ -486,9 +502,9 @@ func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err erro
 }
 
 type GraphVizOpts struct {
-	Style string
-	FocalID string
-	StripUninf bool
+	Style       string
+	FocalID     string
+	StripUninf  bool
 	LabelNumber bool
 }
 

@@ -1,13 +1,13 @@
 package tdt
 
 import (
-	"io"
-	"os"
-	"github.com/jgbaldwinbrown/csvh"
+	"flag"
 	"fmt"
+	"github.com/jgbaldwinbrown/csvh"
+	"io"
 	"log"
 	"math/rand"
-	"flag"
+	"os"
 )
 
 // type PedEntry struct {
@@ -26,10 +26,10 @@ func ShufPedSex(ps []PedEntry, r *rand.Rand) {
 }
 
 type ShufPedSexFlags struct {
-	Inpath string
-	Outpre string
-	Reps int
-	Seed int
+	Inpath     string
+	Outpre     string
+	Reps       int
+	Seed       int
 	ShufPhenos bool
 }
 
@@ -48,12 +48,12 @@ func ParsePedPathMaybe(path string) ([]PedEntry, error) {
 
 func WritePedEntry(w io.Writer, p PedEntry) error {
 	_, e := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
-			p.FamilyID,
-			p.IndividualID,
-			p.PaternalID,
-			p.MaternalID,
-			p.Sex,
-			p.Phenotype,
+		p.FamilyID,
+		p.IndividualID,
+		p.PaternalID,
+		p.MaternalID,
+		p.Sex,
+		p.Phenotype,
 	)
 	return e
 }

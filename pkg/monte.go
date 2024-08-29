@@ -1,16 +1,16 @@
 package tdt
 
 import (
-	"golang.org/x/exp/slices"
-	"math"
-	"log"
-	"io"
-	"fmt"
-	"flag"
-	"gonum.org/v1/gonum/stat/distuv"
-	"golang.org/x/exp/rand"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"github.com/jgbaldwinbrown/csvh"
+	"golang.org/x/exp/rand"
+	"golang.org/x/exp/slices"
+	"gonum.org/v1/gonum/stat/distuv"
+	"io"
+	"log"
+	"math"
 )
 
 func Perm1(r rand.Source, totals []float64) []Family {
@@ -117,16 +117,16 @@ func ReadPathResults(path string) ([]TDTResult, error) {
 }
 
 type MonteArgs struct {
-	Actual string
+	Actual     string
 	Background string
-	Seed int
+	Seed       int
 	Replicates int
 }
 
 func NoZeroes(rs []TDTResult) []TDTResult {
 	var out []TDTResult
 	for _, r := range rs {
-		if r.Totals.MaleF1 + r.Totals.FemaleF1 < 1.0 {
+		if r.Totals.MaleF1+r.Totals.FemaleF1 < 1.0 {
 			continue
 		}
 		if math.IsInf(r.P, 0) {
@@ -168,7 +168,7 @@ func FullMonte() {
 
 	tots := make([]float64, 0, len(bg))
 	for _, bg1 := range bg {
-		tots = append(tots, float64(bg1.Totals.MaleF1 + bg1.Totals.FemaleF1))
+		tots = append(tots, float64(bg1.Totals.MaleF1+bg1.Totals.FemaleF1))
 	}
 
 	rsrc := rand.NewSource(uint64(f.Seed))

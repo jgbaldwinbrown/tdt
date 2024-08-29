@@ -2,30 +2,30 @@ package tdt
 
 import (
 	"cmp"
-	"slices"
-	"log"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/jgbaldwinbrown/csvh"
 	"github.com/jgbaldwinbrown/iterh"
-	"flag"
+	stat "github.com/jgbaldwinbrown/perf/pkg/stats"
+	"github.com/montanaflynn/stats"
 	"io"
 	"iter"
-	"github.com/montanaflynn/stats"
-	stat "github.com/jgbaldwinbrown/perf/pkg/stats"
+	"log"
+	"slices"
 )
 
 type Entry struct {
-	FamilyID string
+	FamilyID     string
 	IndividualID string
-	FatherID string
-	MotherID string
-	Sex string
-	Phenotype string
-	Prior float64
-	Posterior float64
-	PhenoRisk float64
-	GenoRisk string
+	FatherID     string
+	MotherID     string
+	Sex          string
+	Phenotype    string
+	Prior        float64
+	Posterior    float64
+	PhenoRisk    float64
+	GenoRisk     string
 }
 
 var ParseError = errors.New("entry parsing error")
@@ -341,12 +341,12 @@ func TopN[T cmp.Ordered](it iter.Seq[T], n int) []T {
 }
 
 type Flags struct {
-	RealPath string
-	RealHeader bool
+	RealPath    string
+	RealHeader  bool
 	BgPathsPath string
-	BgHeader bool
-	Chosen string
-	TopN int
+	BgHeader    bool
+	Chosen      string
+	TopN        int
 }
 
 // bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
@@ -370,7 +370,7 @@ func RunOutlier() {
 	flag.BoolVar(&f.RealHeader, "rh", false, "Real data has a header line")
 	flag.BoolVar(&f.BgHeader, "bh", false, "Background data has a header line")
 	flag.IntVar(&f.TopN, "t", -1, "Top number of individuals to average to get score (default 1)")
-	
+
 	flag.Parse()
 	if f.RealPath == "" {
 		log.Fatal("missing -r")
@@ -389,7 +389,7 @@ func RunOutlier() {
 		log.Fatal(e)
 	}
 
-	if (f.TopN == -1) {
+	if f.TopN == -1 {
 		realOutlier := GetBiggestOutlier(iterh.SliceIter(realEntries))
 
 		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutlierPaths(iterh.SliceIter[[]string](bgPaths), f.BgHeader), &e)
@@ -433,7 +433,6 @@ func RunOutlier() {
 		}
 		fmt.Println("backgrount biggest average:", bgAvg)
 	}
-
 
 	if f.Chosen != "" {
 		chosenRank, chosenInternalRank, bgRanks, e := RankStats(f.Chosen, iterh.SliceIter(realEntries), ParsePedPaths(f.BgHeader, bgPaths...))

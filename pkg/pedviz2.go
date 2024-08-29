@@ -1,12 +1,13 @@
 package tdt
 
 import (
+	"flag"
 	"fmt"
 	"io"
-	"os"
-	"flag"
 	"log"
+	"os"
 )
+
 func PointAes() string {
 	return "shape = point, width = 0.06, height = 0.06"
 }
@@ -32,7 +33,7 @@ type RelNode struct {
 
 type RelTree struct {
 	Indivs map[string]IndivNode
-	Rels map[Parents]RelNode
+	Rels   map[Parents]RelNode
 }
 
 func BuildRelTree(tree map[string]Node) RelTree {
@@ -125,7 +126,7 @@ func CollectIndivChildren(t RelTree, in IndivNode) []PedEntry {
 }
 
 func PedvizIndivRecursive(w io.Writer, t RelTree, in IndivNode) (n int, err error) {
-	if (in.Sex != 1) {
+	if in.Sex != 1 {
 		return 0, nil
 	}
 	children := CollectIndivChildren(t, in)

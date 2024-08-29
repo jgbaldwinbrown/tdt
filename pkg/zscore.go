@@ -15,7 +15,7 @@ func Zscores(fs stats.Float64Data) ([]float64, error) {
 	}
 	out := make([]float64, 0, len(fs))
 	for _, f := range fs {
-		out = append(out, (f - mean) / sd)
+		out = append(out, (f-mean)/sd)
 	}
 	return out, nil
 }

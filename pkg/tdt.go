@@ -1,22 +1,22 @@
 package tdt
 
 import (
-	"log"
-	"encoding/json"
-	"regexp"
-	"io"
-	"flag"
-	"math"
 	"bufio"
-	"os"
-	"strings"
+	"encoding/json"
+	"flag"
 	"fmt"
-	"gonum.org/v1/gonum/stat/distuv"
 	"github.com/jgbaldwinbrown/csvh"
+	"gonum.org/v1/gonum/stat/distuv"
+	"io"
+	"log"
+	"math"
+	"os"
+	"regexp"
+	"strings"
 )
 
 func ChiSqTrio(b, c float64) float64 {
-	chisq := ( (b-c) * (b-c) ) / (b+c)
+	chisq := ((b - c) * (b - c)) / (b + c)
 	return chisq
 }
 
@@ -25,7 +25,7 @@ func ChiSqExtended(i, j, h float64) float64 {
 }
 
 type Family struct {
-	MaleF1 float64
+	MaleF1   float64
 	FemaleF1 float64
 }
 
@@ -44,12 +44,12 @@ func CondenseFamilies(fams ...Family) Family {
 }
 
 type PedEntry struct {
-	FamilyID string
+	FamilyID     string
 	IndividualID string
-	PaternalID string
-	MaternalID string
-	Sex int64
-	Phenotype int64
+	PaternalID   string
+	MaternalID   string
+	Sex          int64
+	Phenotype    int64
 }
 
 type Node struct {
@@ -449,16 +449,16 @@ func Must(e error) {
 }
 
 type TDTResult struct {
-	Name string
-	Totals Family
-	Nfamilies float64
-	MaleProportion float64
-	MeanMalesPerFam float64
-	MeanFemalesPerFam float64
+	Name               string
+	Totals             Family
+	Nfamilies          float64
+	MaleProportion     float64
+	MeanMalesPerFam    float64
+	MeanFemalesPerFam  float64
 	MeanChildrenPerFam float64
-	Chisq float64
-	P float64
-	Orphan bool
+	Chisq              float64
+	P                  float64
+	Orphan             bool
 }
 
 func TDTTest(fams ...Family) TDTResult {
@@ -480,17 +480,17 @@ func TDTTest(fams ...Family) TDTResult {
 }
 
 type TDTResultJson struct {
-	Name string
-	TotalMales any
-	TotalFemales any
-	Nfamilies any
-	MaleProportion any
-	MeanMalesPerFam any
-	MeanFemalesPerFam any
+	Name               string
+	TotalMales         any
+	TotalFemales       any
+	Nfamilies          any
+	MaleProportion     any
+	MeanMalesPerFam    any
+	MeanFemalesPerFam  any
 	MeanChildrenPerFam any
-	Chisq any
-	P any
-	Orphan bool
+	Chisq              any
+	P                  any
+	Orphan             bool
 }
 
 func FloatToJson(f float64) any {
@@ -580,7 +580,6 @@ func FullTDTTestOld() {
 	ap := 1 - dist.CDF(math.Abs(achi))
 	fmt.Printf("achi: %v; ap: %v\n", achi, ap)
 }
-
 
 func FullTDTTest() {
 	focal := flag.Int("f", -1, "focal ID (required)")

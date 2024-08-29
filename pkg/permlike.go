@@ -1,13 +1,13 @@
 package tdt
 
 import (
+	"flag"
 	"fmt"
 	"github.com/jgbaldwinbrown/iterh"
 	"github.com/montanaflynn/stats"
-	"slices"
-	"flag"
-	"log"
 	"iter"
+	"log"
+	"slices"
 )
 
 func Means(it iter.Seq[[]float64]) iter.Seq2[float64, error] {
@@ -55,7 +55,7 @@ func RunCountWARPHits() {
 	flag.StringVar(&f.BgPathsPath, "b", "", "Path to list of paths containing warp output for background data")
 	flag.BoolVar(&f.RealHeader, "rh", false, "Real data has a header line")
 	flag.BoolVar(&f.BgHeader, "bh", false, "Background data has a header line")
-	
+
 	flag.Parse()
 	if f.RealPath == "" {
 		log.Fatal("missing -r")

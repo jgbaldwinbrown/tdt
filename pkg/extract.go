@@ -1,11 +1,11 @@
 package tdt
 
 import (
-	"os"
 	"flag"
-	"log"
-	"io"
 	"fmt"
+	"io"
+	"log"
+	"os"
 )
 
 func ExtractFamilyAuto(focalID string, ps ...PedEntry) []PedEntry {

@@ -26,4 +26,3 @@ func ParsePedSafe(r io.Reader) ([]PedEntry, error) {
 	}
 	return ps, nil
 }
-

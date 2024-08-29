@@ -1,15 +1,15 @@
 package tdt
 
 import (
-	"os"
 	"bufio"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"github.com/jgbaldwinbrown/iterh"
 	"github.com/jgbaldwinbrown/kolm/pkg"
 	"io"
 	"iter"
 	"log"
+	"os"
 )
 
 func ReadResultsJson(r io.Reader) iter.Seq2[TDTResult, error] {
