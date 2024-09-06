@@ -16,9 +16,12 @@ func ReadResultsJson(r io.Reader) iter.Seq2[TDTResult, error] {
 	return func(y func(TDTResult, error) bool) {
 		dec := json.NewDecoder(r)
 		var err error
-		for err != io.EOF {
+		for {
 			var j TDTResultJson
-			err = dec.Decode(j)
+			err = dec.Decode(&j)
+			if err == io.EOF {
+				return
+			}
 			if err != nil && !y(TDTResult{}, err) {
 				return
 			}
@@ -48,4 +51,5 @@ func FullKolm() {
 		log.Fatal(e)
 	}
 	fmt.Printf("%#v\n", k)
+	fmt.Printf("%.20g\n", k.PValue)
 }
