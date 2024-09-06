@@ -177,6 +177,7 @@ graph [color = "#888888"]
 	return n, nil
 }
 
+// Visualize a pedigree as a graphviz graph
 func Pedviz2(w io.Writer, f Pedviz2Flags, tree map[string]Node) (n int, err error) {
 	rtree := BuildRelTree(tree)
 	focal, ok := rtree.Indivs[f.FocalID]

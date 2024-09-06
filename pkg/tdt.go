@@ -15,15 +15,20 @@ import (
 	"strings"
 )
 
+// Calculate the Chi Squared value for a set trios where b is the number of males and c is the number of females
 func ChiSqTrio(b, c float64) float64 {
 	chisq := ((b - c) * (b - c)) / (b + c)
 	return chisq
 }
 
+// Same as ChiSqTrio, but using the extended chi squared approach (not used here)
 func ChiSqExtended(i, j, h float64) float64 {
 	return 4 * (i - j) * (i - j) / h
 }
 
+// Counts of male and female F1 offspring from all trios in a family, where a
+// family is a set of individuals all carrying a potentially-distorting
+// chromosome
 type Family struct {
 	MaleF1   float64
 	FemaleF1 float64
@@ -34,6 +39,7 @@ func ChiSqTrioMultiFamily(fams ...Family) float64 {
 	return ChiSqTrio(sums.MaleF1, sums.FemaleF1)
 }
 
+// Collect a set of families together into one big family (sum the males and sum the females)
 func CondenseFamilies(fams ...Family) Family {
 	var sums Family
 	for _, f := range fams {
@@ -52,12 +58,13 @@ type PedEntry struct {
 	Phenotype    int64
 }
 
+// A pedigreed individual and a map containing all of their offspring's individual IDs
 type Node struct {
 	PedEntry
 	ChildIDs map[string]struct{}
 }
 
-func BuildPedTreeInconsistent(ps ...PedEntry) map[string]Node {
+func buildPedTreeInconsistent(ps ...PedEntry) map[string]Node {
 	tree := make(map[string]Node, len(ps))
 	for _, p := range ps {
 		tree[p.IndividualID] = Node{PedEntry: p, ChildIDs: map[string]struct{}{}}
@@ -76,6 +83,7 @@ func BuildPedTreeInconsistent(ps ...PedEntry) map[string]Node {
 	return tree
 }
 
+// Set the maternal and paternal IDs of n to match p, unless n's IDs are set to the orphan values of 0 or 999999
 func UpdateNode(n Node, p PedEntry) (Node, error) {
 	var err error
 	if n.PedEntry != p {
@@ -120,6 +128,7 @@ func BuildPedTree(ps ...PedEntry) map[string]Node {
 	return tree
 }
 
+// Add a family contained in "tree" and all descended from "indiv" to fams
 func AddFam(fams []Family, indiv PedEntry, tree map[string]Node) []Family {
 	var fam Family
 	node, ok := tree[indiv.IndividualID]
@@ -141,6 +150,7 @@ func AddFam(fams []Family, indiv PedEntry, tree map[string]Node) []Family {
 	return append(fams, fam)
 }
 
+// Check if an individual p has the same Y chromosome as focalID based on descent
 func HasY(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID {
 		return true
@@ -160,6 +170,7 @@ func HasY(p PedEntry, focalID string, tree map[string]Node) bool {
 	return false
 }
 
+// Check if the father of p has the same Y chromosome as focalID by descent
 func DadHasY(p PedEntry, focalID string, tree map[string]Node) bool {
 	if dad, ok := tree[p.PaternalID]; ok {
 		return HasY(dad.PedEntry, focalID, tree)
@@ -167,6 +178,7 @@ func DadHasY(p PedEntry, focalID string, tree map[string]Node) bool {
 	return false
 }
 
+// Check if p is in the line of descent of focalID's X chromosome(s)
 func HasX(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID {
 		return true
@@ -205,6 +217,7 @@ func HasX(p PedEntry, focalID string, tree map[string]Node) bool {
 	return false
 }
 
+// Check if p is in the line of descent of focalID's X(s), assuming it is only transmitted by female parents
 func HasXFemDescent(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID {
 		return true
@@ -229,6 +242,7 @@ func HasXFemDescent(p PedEntry, focalID string, tree map[string]Node) bool {
 	return false
 }
 
+// Test if p is in the autosomal line of descent of focalID
 func HasAuto(p PedEntry, focalID string, tree map[string]Node) bool {
 	if p.IndividualID == focalID || p.PaternalID == focalID || p.MaternalID == focalID {
 		return true
@@ -242,7 +256,7 @@ func HasAuto(p PedEntry, focalID string, tree map[string]Node) bool {
 	return false
 }
 
-func BuildFamiliesInconsistentY(focalID string, ps ...PedEntry) []Family {
+func buildFamiliesInconsistentY(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -253,6 +267,7 @@ func BuildFamiliesInconsistentY(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
+// Using a tree built from ps, find all family trios that have a father with the same Y descended from focalID
 func BuildFamiliesY(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
@@ -265,7 +280,7 @@ func BuildFamiliesY(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesInconsistentX(focalID string, ps ...PedEntry) []Family {
+func buildFamiliesInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -276,6 +291,7 @@ func BuildFamiliesInconsistentX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
+// Using a tree built from ps, find all family trios that have a parent in the line of descent for focalID's X(s)
 func BuildFamiliesX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
@@ -288,7 +304,7 @@ func BuildFamiliesX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesMaleInconsistentX(focalID string, ps ...PedEntry) []Family {
+func buildFamiliesMaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -301,6 +317,7 @@ func BuildFamiliesMaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
+// Using a tree built from ps, find all family trios that have a father in the line of descent for focalID's X(s)
 func BuildFamiliesMaleX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
@@ -315,7 +332,7 @@ func BuildFamiliesMaleX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
+func buildFamiliesFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -328,6 +345,7 @@ func BuildFamiliesFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
+// Using a tree built from ps, find all family trios that have a mother in the line of descent for focalID's X(s)
 func BuildFamiliesFemaleX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
@@ -342,7 +360,7 @@ func BuildFamiliesFemaleX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesFemDescentFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
+func buildFamiliesFemDescentFemaleInconsistentX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -355,6 +373,7 @@ func BuildFamiliesFemDescentFemaleInconsistentX(focalID string, ps ...PedEntry) 
 	return fams
 }
 
+// Using a tree built from ps, find all family trios that have a mother in the line of descent for focalID's X(s), assuming it is only passed on by mothers
 func BuildFamiliesFemDescentFemaleX(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
@@ -369,7 +388,7 @@ func BuildFamiliesFemDescentFemaleX(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
-func BuildFamiliesInconsistentAuto(focalID string, ps ...PedEntry) []Family {
+func buildFamiliesInconsistentAuto(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
 	for _, p := range ps {
@@ -380,6 +399,7 @@ func BuildFamiliesInconsistentAuto(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
+// Using a tree built from ps, find all family trios that have a parent in the line of descent for focalID
 func BuildFamiliesAuto(focalID string, ps ...PedEntry) []Family {
 	tree := BuildPedTree(ps...)
 	var fams []Family
@@ -392,6 +412,7 @@ func BuildFamiliesAuto(focalID string, ps ...PedEntry) []Family {
 	return fams
 }
 
+// run fmt.Sscanf on each element in line
 func Scan(line []string, ptrs ...any) (n int, err error) {
 	for i, ptr := range ptrs {
 		nread, e := fmt.Sscanf(line[i], "%v", ptr)
@@ -418,6 +439,7 @@ func ParsePedEntry(s string) (PedEntry, error) {
 
 var skipRe = regexp.MustCompile(`^#|^$`)
 
+// If the pedigree line is empty or a comment, skip it
 func ShouldSkipPedLine(line string) bool {
 	return skipRe.MatchString(line)
 }
@@ -479,6 +501,7 @@ func TDTTest(fams ...Family) TDTResult {
 	return r
 }
 
+// a Json-friendly version of TDTResult
 type TDTResultJson struct {
 	Name               string
 	TotalMales         any
@@ -552,7 +575,7 @@ func FromJson(r TDTResultJson) TDTResult {
 	return j
 }
 
-func FullTDTTestOld() {
+func fullTDTTestOld() {
 	focal := flag.Int("f", -1, "focal ID (required)")
 	flag.Parse()
 	if *focal == -1 {
@@ -615,6 +638,7 @@ func FullTDTTest() {
 	Must(err)
 }
 
+// Read all lines of a file into a slice
 func ReadLines(path string) ([]string, error) {
 	r, e := os.Open(path)
 	if e != nil {

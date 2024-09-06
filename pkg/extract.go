@@ -8,6 +8,7 @@ import (
 	"os"
 )
 
+// Extract the individual with focalID and all of their offsprint from ps
 func ExtractFamilyAuto(focalID string, ps ...PedEntry) []PedEntry {
 	tree := BuildPedTree(ps...)
 	famped := []PedEntry{}
@@ -19,6 +20,7 @@ func ExtractFamilyAuto(focalID string, ps ...PedEntry) []PedEntry {
 	return famped
 }
 
+// Print pedigree entries as a .ped file
 func PrintPed(w io.Writer, ped ...PedEntry) (n int, err error) {
 	for _, p := range ped {
 		nwrit, err := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",

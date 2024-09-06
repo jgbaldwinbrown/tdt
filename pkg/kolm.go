@@ -12,6 +12,7 @@ import (
 	"os"
 )
 
+// Read the results of the TDT test as JSON
 func ReadResultsJson(r io.Reader) iter.Seq2[TDTResult, error] {
 	return func(y func(TDTResult, error) bool) {
 		dec := json.NewDecoder(r)
@@ -33,6 +34,7 @@ func ReadResultsJson(r io.Reader) iter.Seq2[TDTResult, error] {
 	}
 }
 
+// Run the whole kolmogorov-smirnov test on a set of TDT results, comparing them to the chi-squared distribution
 func FullKolm() {
 	ress, e := iterh.CollectWithError(ReadResultsJson(bufio.NewReader(os.Stdin)))
 	if e != nil {

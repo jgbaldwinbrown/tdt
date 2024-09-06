@@ -10,6 +10,7 @@ import (
 	"slices"
 )
 
+// Get a mean for each float slice
 func Means(it iter.Seq[[]float64]) iter.Seq2[float64, error] {
 	return func(y func(float64, error) bool) {
 		for fs := range it {
@@ -21,12 +22,15 @@ func Means(it iter.Seq[[]float64]) iter.Seq2[float64, error] {
 	}
 }
 
+// Find the value that corresponds to this percentile in the distribution "fs"
 func Quantile(fs []float64, perc float64) float64 {
 	sorted := slices.Sorted(slices.Values(fs))
 	quant := int(perc * float64(len(fs)))
 	return sorted[quant]
 }
 
+// Get a slice of posteriors for every set of entries. Bufsiz is optional and
+// tells PosteriorSlices to allocate an initial slice of size bufsiz.
 func PosteriorSlices(bufsiz int, it iter.Seq[iter.Seq2[Entry, error]]) iter.Seq2[[]float64, error] {
 	return func(y func([]float64, error) bool) {
 		for ped := range it {
@@ -49,6 +53,7 @@ func PosteriorSlices(bufsiz int, it iter.Seq[iter.Seq2[Entry, error]]) iter.Seq2
 	}
 }
 
+// Concatenate all sequences of entries and crash on error, reporting the error to "ep"
 func FlattenEntries(itit iter.Seq[iter.Seq2[Entry, error]], ep *error) iter.Seq[Entry] {
 	return func(y func(Entry) bool) {
 		for it := range itit {

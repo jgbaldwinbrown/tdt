@@ -520,6 +520,7 @@ func GetOpts() GraphVizOpts {
 	return g
 }
 
+// Visualize a pedigree as a graphviz graph; now obsolesced by pedviz2
 func FullToGraphViz() {
 	opts := GetOpts()
 	ps, e := ParsePedFromReader(os.Stdin)

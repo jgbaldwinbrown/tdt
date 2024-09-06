@@ -1,5 +1,6 @@
 package tdt
 
+// Check if p has a father in tree
 func HasFather(p PedEntry, tree map[string]Node) bool {
 	_, ok := tree[p.PaternalID]
 	if p.IndividualID == "0" || p.IndividualID == "999999" {
@@ -8,7 +9,8 @@ func HasFather(p PedEntry, tree map[string]Node) bool {
 	return ok
 }
 
-func FindFocalsInconsistent(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEntry) {
+// Deprecated
+func findFocalsInconsistent(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEntry) {
 	tree := BuildPedTree(ped...)
 	for _, p := range ped {
 		if p.Sex != 1 {
@@ -23,6 +25,7 @@ func FindFocalsInconsistent(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanF
 	return orphanFocal, nonOrphanFocal
 }
 
+// From the entries in ped, find all individuals that are male. If they have a father, put them in nonOrphanFocal otherwise, put them in orphanFocal
 func FindFocals(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEntry) {
 	tree := BuildPedTree(ped...)
 	for _, node := range tree {
@@ -39,6 +42,7 @@ func FindFocals(ped ...PedEntry) (orphanFocal []PedEntry, nonOrphanFocal []PedEn
 	return orphanFocal, nonOrphanFocal
 }
 
+// Remove duplicates from the pedigree
 func UniqPed(ped ...PedEntry) []PedEntry {
 	tree := BuildPedTree(ped...)
 	out := make([]PedEntry, 0, len(tree))

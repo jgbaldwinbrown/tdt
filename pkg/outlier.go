@@ -15,6 +15,7 @@ import (
 	"slices"
 )
 
+// An entry from WARP's output, an extended .ped file
 type Entry struct {
 	FamilyID     string
 	IndividualID string
@@ -30,6 +31,7 @@ type Entry struct {
 
 var ParseError = errors.New("entry parsing error")
 
+// Parse a WARP output line to an Entry
 func ParseLineToEntry(line []string) (Entry, error) {
 	if len(line) != 11 {
 		return Entry{}, ParseError
@@ -52,6 +54,7 @@ func ParseLineToEntry(line []string) (Entry, error) {
 	return ent, e
 }
 
+// Parse a WARP output .ped reader to a sequence of entries
 func ParsePed(r io.Reader, header bool) iter.Seq2[Entry, error] {
 	return func(y func(Entry, error) bool) {
 		h := csvh.Handle0("ParsePed: %w")
@@ -88,6 +91,7 @@ func ParsePed(r io.Reader, header bool) iter.Seq2[Entry, error] {
 	}
 }
 
+// Parse WARP output .ped or .ped.gz file
 func ParsePedPath(path string, header bool) iter.Seq2[Entry, error] {
 	return func(y func(Entry, error) bool) {
 		r, e := csvh.OpenMaybeGz(path)
@@ -106,6 +110,7 @@ func ParsePedPath(path string, header bool) iter.Seq2[Entry, error] {
 	}
 }
 
+// Parse many WARP output files sequentially
 func ParsePedPaths(header bool, paths ...string) iter.Seq[iter.Seq2[Entry, error]] {
 	return func(y func(iter.Seq2[Entry, error]) bool) {
 		for _, path := range paths {
@@ -116,6 +121,7 @@ func ParsePedPaths(header bool, paths ...string) iter.Seq[iter.Seq2[Entry, error
 	}
 }
 
+// Get the single most significant individual
 func GetBiggestOutlier(it iter.Seq[Entry]) Entry {
 	var best Entry
 	started := false
@@ -128,6 +134,7 @@ func GetBiggestOutlier(it iter.Seq[Entry]) Entry {
 	return best
 }
 
+// Get the nop n most significant individuals
 func GetBiggestOutliers(it iter.Seq[Entry], n int) []Entry {
 	all := slices.SortedFunc(it, iterh.Negative(func(a, b Entry) int {
 		if a.Posterior < b.Posterior {
@@ -189,6 +196,7 @@ func GetBiggestOutliersPaths(paths iter.Seq[string], header bool, n int) iter.Se
 	}
 }
 
+// The percentage of entries in bgOutliers more significant than realOutlier
 func BiggestOutlierPerc(realOutlier Entry, bgOutliers iter.Seq[Entry]) float64 {
 	totalCount := 0
 	biggerCount := 0
@@ -201,6 +209,7 @@ func BiggestOutlierPerc(realOutlier Entry, bgOutliers iter.Seq[Entry]) float64 {
 	return float64(biggerCount) / float64(totalCount)
 }
 
+// Average of all posteriors in the slice for each slice
 func PosteriorMeans(it iter.Seq[[]Entry]) iter.Seq2[float64, error] {
 	return func(y func(float64, error) bool) {
 		for ents := range it {
@@ -212,6 +221,7 @@ func PosteriorMeans(it iter.Seq[[]Entry]) iter.Seq2[float64, error] {
 	}
 }
 
+// Mean of posteriors
 func GetBiggestOutlierAvg(bgOutliers iter.Seq[Entry]) float64 {
 	sum := 0.0
 	count := 0.0
@@ -222,6 +232,7 @@ func GetBiggestOutlierAvg(bgOutliers iter.Seq[Entry]) float64 {
 	return sum / count
 }
 
+// Extract and normalize all posteriors
 func GetZscores(ents []Entry) ([]float64, error) {
 	fs := make([]float64, 0, len(ents))
 	for _, ent := range ents {
@@ -230,6 +241,7 @@ func GetZscores(ents []Entry) ([]float64, error) {
 	return Zscores(fs)
 }
 
+// Extract and normalize all posteriors for each of the entry sets, then get the highest z score for each one
 func GetAllBestZscores(its iter.Seq[iter.Seq2[Entry, error]]) ([]float64, error) {
 	var bests []float64
 	for it := range its {
@@ -247,6 +259,7 @@ func GetAllBestZscores(its iter.Seq[iter.Seq2[Entry, error]]) ([]float64, error)
 	return bests, nil
 }
 
+// Like GetAllBestZscores, but get the top n
 func GetAllBestZscoresTopN(its iter.Seq[iter.Seq2[Entry, error]], n int) ([][]float64, error) {
 	var bests [][]float64
 	for it := range its {
@@ -264,6 +277,7 @@ func GetAllBestZscoresTopN(its iter.Seq[iter.Seq2[Entry, error]], n int) ([][]fl
 	return bests, nil
 }
 
+// Get the posterior of a specific id and return if it was found
 func GetIDPosterior(id string, ents iter.Seq[Entry]) (float64, bool) {
 	for ent := range ents {
 		if ent.IndividualID == id {
@@ -273,6 +287,7 @@ func GetIDPosterior(id string, ents iter.Seq[Entry]) (float64, bool) {
 	return 0, false
 }
 
+// Get the posterior of a specific ID for each set; couns number of times it was missed.
 func GetAllIDPosteriors(id string, its iter.Seq[iter.Seq2[Entry, error]]) (vals []float64, nmissing int, err error) {
 	for it := range its {
 		val, ok := GetIDPosterior(id, iterh.BreakOnError(it, &err))
@@ -288,6 +303,7 @@ func GetAllIDPosteriors(id string, its iter.Seq[iter.Seq2[Entry, error]]) (vals 
 	return vals, nmissing, nil
 }
 
+// Calculate the rank of the chosen ID compared to itself in the background and compared to all other IDs in the real pedigree
 func RankStats(id string, realPed iter.Seq[Entry], bgPeds iter.Seq[iter.Seq2[Entry, error]]) (chosenRank, chosenInternalRank float64, bgRanks []float64, err error) {
 	idx, realIDVal := iterh.IndexFunc(realPed, func(ent Entry) bool {
 		return ent.IndividualID == id
@@ -322,12 +338,14 @@ func RankStats(id string, realPed iter.Seq[Entry], bgPeds iter.Seq[iter.Seq2[Ent
 	return chosenRank, chosenInternalRank, bgRanks, nil
 }
 
+// Get posteriors from entries
 func Posteriors(it iter.Seq[Entry]) iter.Seq[float64] {
 	return iterh.Transform(it, func(ent Entry) float64 {
 		return ent.Posterior
 	})
 }
 
+// Get the top n of anything
 func TopNFunc[T any](it iter.Seq[T], cmpf func(T, T) int, n int) []T {
 	sorted := slices.SortedFunc(it, cmpf)
 	if len(sorted) < n {
@@ -336,6 +354,7 @@ func TopNFunc[T any](it iter.Seq[T], cmpf func(T, T) int, n int) []T {
 	return sorted[:n]
 }
 
+// Get the top n of anything ordered
 func TopN[T cmp.Ordered](it iter.Seq[T], n int) []T {
 	return TopNFunc(it, iterh.Negative[T](cmp.Compare), n)
 }
@@ -350,6 +369,8 @@ type Flags struct {
 }
 
 // bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
+
+// For each set of scores, get the average z score
 func GetBgZScoresMeans(bgZScores [][]float64) ([]float64, error) {
 	out := make([]float64, 0, len(bgZScores))
 	for _, set := range bgZScores {

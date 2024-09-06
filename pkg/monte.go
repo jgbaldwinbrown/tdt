@@ -13,6 +13,7 @@ import (
 	"math"
 )
 
+// Take a set of counts of total offspring in an extended family and make a new set of families with binomially-drawn offspring with P(male) = 0.5
 func Perm1(r rand.Source, totals []float64) []Family {
 	out := make([]Family, 0, len(totals))
 	for _, tot := range totals {
@@ -24,6 +25,7 @@ func Perm1(r rand.Source, totals []float64) []Family {
 	return out
 }
 
+// Run Perm1 repeatedly
 func Perm(r rand.Source, nperms int, totals []float64) [][]Family {
 	out := make([][]Family, 0, nperms)
 	for i := 0; i < nperms; i++ {
@@ -32,6 +34,7 @@ func Perm(r rand.Source, nperms int, totals []float64) [][]Family {
 	return out
 }
 
+// Run the TDT test on each of fams independently
 func TDTMultipleFamilies(fams []Family) []TDTResult {
 	out := make([]TDTResult, 0, len(fams))
 	for _, fam := range fams {
@@ -40,6 +43,7 @@ func TDTMultipleFamilies(fams []Family) []TDTResult {
 	return out
 }
 
+// Run TDTMultipleFamilies on each set in famsets
 func TDTReplicateFamilySets(famsets [][]Family) [][]TDTResult {
 	out := make([][]TDTResult, 0, len(famsets))
 	for _, famset := range famsets {
@@ -48,6 +52,7 @@ func TDTReplicateFamilySets(famsets [][]Family) [][]TDTResult {
 	return out
 }
 
+// Find whether the actual TDT result is more significant than all background results
 func MostSignificant(actual TDTResult, background []TDTResult) bool {
 	for _, res := range background {
 		if actual.P > res.P {
@@ -57,6 +62,7 @@ func MostSignificant(actual TDTResult, background []TDTResult) bool {
 	return true
 }
 
+// Find out what percentage of backgrounds have no individuals more significant than actual.
 func MostSignificantPercentage(actual TDTResult, background [][]TDTResult) float64 {
 	goods := 0
 	for _, res := range background {
@@ -67,6 +73,7 @@ func MostSignificantPercentage(actual TDTResult, background [][]TDTResult) float
 	return float64(goods) / float64(len(background))
 }
 
+// Figure out if actual is above the "p" percentile of the background
 func TopSignificant(p float64, actual TDTResult, background []TDTResult) bool {
 	bg := make([]float64, 0, len(background))
 	for _, res := range background {
@@ -79,6 +86,7 @@ func TopSignificant(p float64, actual TDTResult, background []TDTResult) bool {
 	return actual.P < bg[p5]
 }
 
+// Figure out how often the actual is above the "p" percentile in each background
 func TopSignificantPercentage(p float64, actual TDTResult, background [][]TDTResult) float64 {
 	goods := 0
 	for _, res := range background {
@@ -89,6 +97,7 @@ func TopSignificantPercentage(p float64, actual TDTResult, background [][]TDTRes
 	return float64(goods) / float64(len(background))
 }
 
+// Read TDT results from reader
 func ReadResults(r io.Reader) ([]TDTResult, error) {
 	dec := json.NewDecoder(r)
 	var out []TDTResult
@@ -107,6 +116,7 @@ func ReadResults(r io.Reader) ([]TDTResult, error) {
 	return out, nil
 }
 
+// Read TDT results from path
 func ReadPathResults(path string) ([]TDTResult, error) {
 	r, e := csvh.OpenMaybeGz(path)
 	if e != nil {
@@ -116,6 +126,7 @@ func ReadPathResults(path string) ([]TDTResult, error) {
 	return ReadResults(r)
 }
 
+// Arguments needed to specify a unique monte carlo run
 type MonteArgs struct {
 	Actual     string
 	Background string
@@ -123,6 +134,7 @@ type MonteArgs struct {
 	Replicates int
 }
 
+// Remove zeroes, infs, and nans from results
 func NoZeroes(rs []TDTResult) []TDTResult {
 	var out []TDTResult
 	for _, r := range rs {

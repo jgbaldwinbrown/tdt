@@ -19,12 +19,14 @@ import (
 // 	Phenotype int64
 // }
 
+// Randomly re-sort all ped entries
 func ShufPedSex(ps []PedEntry, r *rand.Rand) {
 	r.Shuffle(len(ps), func(i, j int) {
 		ps[i].Sex, ps[j].Sex = ps[j].Sex, ps[i].Sex
 	})
 }
 
+// aruments; ShufPhenos indicates to shuffle the phenotypes instead of the sexes
 type ShufPedSexFlags struct {
 	Inpath     string
 	Outpre     string
@@ -33,6 +35,7 @@ type ShufPedSexFlags struct {
 	ShufPhenos bool
 }
 
+// Parse ped file (again?)
 func ParsePedPathMaybe(path string) ([]PedEntry, error) {
 	var r io.Reader = os.Stdin
 	if path != "" {
@@ -46,6 +49,7 @@ func ParsePedPathMaybe(path string) ([]PedEntry, error) {
 	return ParsePedFromReader(r)
 }
 
+// Write out ped entry
 func WritePedEntry(w io.Writer, p PedEntry) error {
 	_, e := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
 		p.FamilyID,
@@ -58,6 +62,7 @@ func WritePedEntry(w io.Writer, p PedEntry) error {
 	return e
 }
 
+// Write out whole ped file
 func WritePed(w io.Writer, ps []PedEntry) error {
 	for _, p := range ps {
 		if e := WritePedEntry(w, p); e != nil {
@@ -67,6 +72,7 @@ func WritePed(w io.Writer, ps []PedEntry) error {
 	return nil
 }
 
+// Write ped file to path
 func WritePedPath(path string, ps []PedEntry) (err error) {
 	w, e := csvh.CreateMaybeGz(path)
 	if e != nil {

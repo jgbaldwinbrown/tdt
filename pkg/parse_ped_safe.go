@@ -7,6 +7,7 @@ import (
 	"log"
 )
 
+// Parse the ped in such a way that it will not panic
 func ParsePedSafe(r io.Reader) ([]PedEntry, error) {
 	s := bufio.NewScanner(r)
 	var ps []PedEntry

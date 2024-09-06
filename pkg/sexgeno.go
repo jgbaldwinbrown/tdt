@@ -7,16 +7,19 @@ import (
 	"math/rand"
 )
 
+// Force phenotype to match sex
 func SexPheno(p *PedEntry) {
 	p.Phenotype = p.Sex
 }
 
+// Shuffle all phenotypes
 func ShufPedPheno(ps []PedEntry, r *rand.Rand) {
 	r.Shuffle(len(ps), func(i, j int) {
 		ps[i].Phenotype, ps[j].Phenotype = ps[j].Phenotype, ps[i].Phenotype
 	})
 }
 
+// Generate a genotype string for every sex
 func SexGeno(sex int64) string {
 	if sex == 1 {
 		return "Aa"
@@ -24,6 +27,7 @@ func SexGeno(sex int64) string {
 	return "AA"
 }
 
+// For each pedigree entry, list the family ID, individual ID and sex geno (unused)
 func WriteSexGenos(w io.Writer, ped ...PedEntry) error {
 	if _, e := fmt.Fprintf(w, "fam\tind\tgeno\n"); e != nil {
 		return e
