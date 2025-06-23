@@ -8,34 +8,44 @@ import (
 	"os"
 )
 
+// Basic point aesthetic for plotting
 func PointAes() string {
 	return "shape = point, width = 0.06, height = 0.06"
 }
 
+// Flags to run Pedviz2
 type Pedviz2Flags struct {
 	FocalID string
 }
 
+// A PedEntry containing identifying information about an individual, plus a
+// set of all of the parentage pairs it is involved in as a parent
 type IndivNode struct {
 	PedEntry
 	ChildRels map[Parents]struct{}
 }
 
+// A pair of parents. Any given pair should only occur once per graph, but
+// individual parents can be in multiple pairs.
 type Parents struct {
 	Father string
 	Mother string
 }
 
+// A node connecting a pair of parents to their children
 type RelNode struct {
 	Parents
 	Children map[string]struct{}
 }
 
+// A tree that holds both all IndivNodes and all RelNodes
 type RelTree struct {
 	Indivs map[string]IndivNode
 	Rels   map[Parents]RelNode
 }
 
+// Find all paren-child relationships in a tree and build a RelTree describing
+// them
 func BuildRelTree(tree map[string]Node) RelTree {
 	var t RelTree
 	t.Indivs = make(map[string]IndivNode)
@@ -72,6 +82,7 @@ func BuildRelTree(tree map[string]Node) RelTree {
 	return t
 }
 
+// Apply aesthetics for sex based on the PedEntry Sex field
 func SexAes(p PedEntry) string {
 	if p.Sex == 1 {
 		return "style = filled" + MaleAes()
@@ -82,14 +93,17 @@ func SexAes(p PedEntry) string {
 	return ""
 }
 
+// Generate a dot file command for one individual
 func PedvizSingleIndiv(w io.Writer, in IndivNode) (n int, err error) {
 	return fmt.Fprintf(w, "p%v [%v]\n", in.IndividualID, SexAes(in.PedEntry))
 }
 
+// Generate a dot file command for one parent pair node (RelNode)
 func PedvizSingleRel(w io.Writer, r RelNode) (n int, err error) {
 	return fmt.Fprintf(w, "r%vx%v [%v]\n", r.Parents.Father, r.Parents.Mother, PointAes())
 }
 
+// Generate dot file commands for a RelNode and all of its children
 func PedvizRelAndDirectChildren(w io.Writer, t RelTree, r RelNode) (n int, err error) {
 	nw, e := PedvizSingleRel(w, r)
 	n += nw
@@ -113,6 +127,7 @@ func PedvizRelAndDirectChildren(w io.Writer, t RelTree, r RelNode) (n int, err e
 	return n, e
 }
 
+// Get all children of an individual from a RelTree
 func CollectIndivChildren(t RelTree, in IndivNode) []PedEntry {
 	var out []PedEntry
 	for rname, _ := range in.ChildRels {
@@ -125,6 +140,8 @@ func CollectIndivChildren(t RelTree, in IndivNode) []PedEntry {
 	return out
 }
 
+// Starting from a focal individual "in", generate pedviz dot file commands for
+// this individual and all descendants
 func PedvizIndivRecursive(w io.Writer, t RelTree, in IndivNode) (n int, err error) {
 	if in.Sex != 1 {
 		return 0, nil
@@ -209,6 +226,7 @@ func Pedviz2(w io.Writer, f Pedviz2Flags, tree map[string]Node) (n int, err erro
 	return n, e
 }
 
+// Run Pedviz2 on the command line
 func FullPedviz2() {
 	var f Pedviz2Flags
 	flag.StringVar(&f.FocalID, "f", "", "focal ID")

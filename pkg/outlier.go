@@ -383,6 +383,7 @@ func GetBgZScoresMeans(bgZScores [][]float64) ([]float64, error) {
 	return out, nil
 }
 
+// Run all outlier code on the command line.
 func RunOutlier() {
 	var f Flags
 	flag.StringVar(&f.RealPath, "r", "", "Path to output of warp for real data")

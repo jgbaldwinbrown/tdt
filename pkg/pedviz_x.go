@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// Generate cluster of all individuals that may carry an X chromosome by descent from focalID
 func ClusterXs(focalID string, tree map[string]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
 	mclusters := make(map[string][]PedEntry)
 	for _, p := range ps {
@@ -18,6 +19,7 @@ func ClusterXs(focalID string, tree map[string]Node, ps ...PedEntry) (unclustere
 	return unclustered, SortClusters(mclusters)
 }
 
+// Generate GraphViz code for PedEntry
 func PedEntryToGraphVizX(w io.Writer, focalID string, tree map[string]Node, p PedEntry) (n int, err error) {
 	if p.PaternalID != "0" {
 		extra := " [style=dotted]"
@@ -61,6 +63,7 @@ func PedEntryToGraphVizX(w io.Writer, focalID string, tree map[string]Node, p Pe
 	return n, nil
 }
 
+// Convert slice of PedEntries into graphviz code
 func ToGraphVizX(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
 	f := opts.FocalID
 	tree := BuildPedTree(ps...)

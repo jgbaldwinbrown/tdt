@@ -70,6 +70,7 @@ func FlattenEntries(itit iter.Seq[iter.Seq2[Entry, error]], ep *error) iter.Seq[
 	}
 }
 
+// Run on the command line
 func RunCountWARPHits() {
 	var f Flags
 	flag.StringVar(&f.RealPath, "r", "", "Path to output of warp for real data")
@@ -129,6 +130,7 @@ func RunCountWARPHits() {
 	// }
 }
 
+// Run on the command line, v2
 func RunCountWARPHits2() {
 	var f Flags
 	flag.StringVar(&f.RealPath, "r", "", "Path to output of warp for real data")
@@ -175,6 +177,7 @@ func RunCountWARPHits2() {
 	}
 }
 
+// Run on the command line, v3
 func RunCountWARPHits3() {
 	var f Flags
 	flag.StringVar(&f.RealPath, "r", "", "Path to output of warp for real data")

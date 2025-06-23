@@ -4,6 +4,7 @@ import (
 	"github.com/montanaflynn/stats"
 )
 
+// Convert data into Z scores by subtracting the mean and dividing by the standard deviation
 func Zscores(fs stats.Float64Data) ([]float64, error) {
 	mean, e := stats.Mean(fs)
 	if e != nil {

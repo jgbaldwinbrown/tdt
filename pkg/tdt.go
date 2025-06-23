@@ -538,7 +538,7 @@ func JsonToFloat(a any) float64 {
 			return math.Inf(1)
 		}
 	default:
-		log.Fatal("could not convert %v to float", f)
+		log.Fatal(fmt.Errorf("could not convert %v to float", f))
 	}
 	return 0.0
 }
@@ -587,19 +587,19 @@ func fullTDTTestOld() {
 
 	dist := distuv.ChiSquared{K: 1}
 
-	xchi := ChiSqTrioMultiFamily(BuildFamiliesFemaleX(string(*focal), peds...)...)
+	xchi := ChiSqTrioMultiFamily(BuildFamiliesFemaleX(fmt.Sprint(*focal), peds...)...)
 	xp := 1 - dist.CDF(math.Abs(xchi))
 	fmt.Printf("xchi: %v; xp: %v\n", xchi, xp)
 
-	xchifemdescent := ChiSqTrioMultiFamily(BuildFamiliesFemDescentFemaleX(string(*focal), peds...)...)
+	xchifemdescent := ChiSqTrioMultiFamily(BuildFamiliesFemDescentFemaleX(fmt.Sprint(*focal), peds...)...)
 	xpfemdescent := 1 - dist.CDF(math.Abs(xchi))
 	fmt.Printf("fem descent xchi: %v; xp: %v\n", xchifemdescent, xpfemdescent)
 
-	ychi := ChiSqTrioMultiFamily(BuildFamiliesY(string(*focal), peds...)...)
+	ychi := ChiSqTrioMultiFamily(BuildFamiliesY(fmt.Sprint(*focal), peds...)...)
 	yp := 1 - dist.CDF(math.Abs(ychi))
 	fmt.Printf("ychi: %v; yp: %v\n", ychi, yp)
 
-	achi := ChiSqTrioMultiFamily(BuildFamiliesAuto(string(*focal), peds...)...)
+	achi := ChiSqTrioMultiFamily(BuildFamiliesAuto(fmt.Sprint(*focal), peds...)...)
 	ap := 1 - dist.CDF(math.Abs(achi))
 	fmt.Printf("achi: %v; ap: %v\n", achi, ap)
 }
@@ -617,22 +617,22 @@ func FullTDTTest() {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "\t")
 
-	res := TDTTest(BuildFamiliesFemaleX(string(*focal), peds...)...)
+	res := TDTTest(BuildFamiliesFemaleX(fmt.Sprint(*focal), peds...)...)
 	res.Name = "FemaleX"
 	err := enc.Encode(ToJson(res))
 	Must(err)
 
-	res = TDTTest(BuildFamiliesFemDescentFemaleX(string(*focal), peds...)...)
+	res = TDTTest(BuildFamiliesFemDescentFemaleX(fmt.Sprint(*focal), peds...)...)
 	res.Name = "FemDescentFemaleX"
 	err = enc.Encode(ToJson(res))
 	Must(err)
 
-	res = TDTTest(BuildFamiliesY(string(*focal), peds...)...)
+	res = TDTTest(BuildFamiliesY(fmt.Sprint(*focal), peds...)...)
 	res.Name = "Y"
 	err = enc.Encode(ToJson(res))
 	Must(err)
 
-	res = TDTTest(BuildFamiliesAuto(string(*focal), peds...)...)
+	res = TDTTest(BuildFamiliesAuto(fmt.Sprint(*focal), peds...)...)
 	res.Name = "Auto"
 	err = enc.Encode(ToJson(res))
 	Must(err)
@@ -658,6 +658,7 @@ func ReadLines(path string) ([]string, error) {
 	return out, nil
 }
 
+// Run Multi-Y TDT test on the command line
 func FullMultiYTDTTest() {
 	focalPath := flag.String("f", "", "path to line-separated IDs for focal individuals")
 	flag.Parse()
@@ -689,6 +690,7 @@ func FullMultiYTDTTest() {
 	}
 }
 
+// Run all-Y TDT test on the command line
 func FullAllYTDTTest() {
 	pedPath := flag.String("i", "", "path to input .ped file")
 	outPath := flag.String("o", "", "path to write output")

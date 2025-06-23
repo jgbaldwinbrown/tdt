@@ -152,6 +152,7 @@ func NoZeroes(rs []TDTResult) []TDTResult {
 	return out
 }
 
+// Run the entire monte carlo simulation set on the command line
 func FullMonte() {
 	var f MonteArgs
 	flag.StringVar(&f.Actual, "a", "", "path to .json containing actual family results")

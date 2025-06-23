@@ -41,6 +41,7 @@ func WriteSexGenos(w io.Writer, ped ...PedEntry) error {
 	return nil
 }
 
+// Create a file at path and run WriteSexGenos on it
 func WriteSexGenosPath(path string, ped ...PedEntry) (err error) {
 	w, e := csvh.CreateMaybeGz(path)
 	if e != nil {
