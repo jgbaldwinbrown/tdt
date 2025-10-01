@@ -638,26 +638,6 @@ func FullTDTTest() {
 	Must(err)
 }
 
-// Read all lines of a file into a slice
-func ReadLines(path string) ([]string, error) {
-	r, e := os.Open(path)
-	if e != nil {
-		return nil, e
-	}
-	defer r.Close()
-
-	var out []string
-	s := bufio.NewScanner(r)
-	s.Buffer([]byte{}, 1e9)
-	for s.Scan() {
-		if s.Err() != nil {
-			return nil, s.Err()
-		}
-		out = append(out, s.Text())
-	}
-	return out, nil
-}
-
 // Run Multi-Y TDT test on the command line
 func FullMultiYTDTTest() {
 	focalPath := flag.String("f", "", "path to line-separated IDs for focal individuals")
