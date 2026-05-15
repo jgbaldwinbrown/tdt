@@ -83,6 +83,7 @@ func WritePedPath(path string, ps []PedEntry) (err error) {
 	return WritePed(w, ps)
 }
 
+// Run the whole pedigree shuffling program on the command line
 func FullShufPedSex() {
 	var f ShufPedSexFlags
 	flag.StringVar(&f.Inpath, "i", "", "input .ped path (default stdin)")

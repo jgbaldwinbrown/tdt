@@ -12,10 +12,11 @@ require (
 	github.com/jgbaldwinbrown/iterh v0.1.5
 	github.com/jgbaldwinbrown/kolm v0.1.2
 	github.com/jgbaldwinbrown/perf v0.1.1
-	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
+	github.com/jgbaldwinbrown/zfile v0.1.13
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 )
 
 require (
 	github.com/gammazero/deque v0.2.1 // indirect
-	github.com/jgbaldwinbrown/spstat v0.1.1 // indirect
+	github.com/ulikunitz/xz v0.5.12 // indirect
 )

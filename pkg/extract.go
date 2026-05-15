@@ -36,10 +36,12 @@ func PrintPed(w io.Writer, ped ...PedEntry) (n int, err error) {
 	return n, nil
 }
 
+// Flags for FullExtract
 type ExtractFlags struct {
 	FocalID string
 }
 
+// Run code on command line to extract all pedigree entries descended from the focal ID
 func FullExtract() {
 	var f ExtractFlags
 	flag.StringVar(&f.FocalID, "f", "", "ID to extract")

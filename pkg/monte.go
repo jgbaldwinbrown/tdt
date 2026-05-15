@@ -79,8 +79,14 @@ func TopSignificant(p float64, actual TDTResult, background []TDTResult) bool {
 	for _, res := range background {
 		bg = append(bg, res.P)
 	}
-	slices.SortFunc(bg, func(a, b float64) bool {
-		return a < b
+	slices.SortFunc(bg, func(a, b float64) int {
+		if a < b {
+			return -1
+		} else if a > b {
+			return 1
+		} else {
+			return 0
+		}
 	})
 	p5 := int(float64(len(bg)) * p)
 	return actual.P < bg[p5]
@@ -152,6 +158,7 @@ func NoZeroes(rs []TDTResult) []TDTResult {
 	return out
 }
 
+// Run the entire monte carlo simulation set on the command line
 func FullMonte() {
 	var f MonteArgs
 	flag.StringVar(&f.Actual, "a", "", "path to .json containing actual family results")

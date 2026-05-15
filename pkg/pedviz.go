@@ -8,30 +8,37 @@ import (
 	"sort"
 )
 
+// Supply a quoted hex string for red
 func Red() string {
 	return `"#cc8888"`
 }
 
+// Supply a quoted hex string for blue
 func Blue() string {
 	return `"#aaaaee"`
 }
 
+// Return the shape chosen to represent females
 func FemShape() string {
 	return `circle`
 }
 
+// Return the shape chosen to represent males
 func MaleShape() string {
 	return `square`
 }
 
+// Return a string defining all female aesthetics
 func FemAes() string {
 	return fmt.Sprintf(`; fillcolor=%v; shape=%v`, Red(), FemShape())
 }
 
+// Return a string defining all female aesthetics
 func MaleAes() string {
 	return fmt.Sprintf(`; fillcolor=%v; shape=%v`, Blue(), MaleShape())
 }
 
+// Generate a very simple GraphViz graph from the supplied PedEntries
 func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 	nwritten, e := fmt.Fprintf(w, "digraph full {\n")
 	n += nwritten
@@ -80,15 +87,18 @@ func ToGraphVizSimple(w io.Writer, ps ...PedEntry) (n int, err error) {
 	return n, nil
 }
 
+// A set of individuals associated in some way, plus an ID string
 type NamedCluster struct {
 	ID      string
 	Cluster []PedEntry
 }
 
+// The fraction of males in the cluster. Used to calculate sex ratio in families.
 func (c NamedCluster) MaleFrac() float64 {
 	return MaleFrac(c.Cluster)
 }
 
+// Calculate the male fraction for a set of PedEntries.
 func MaleFrac(ps []PedEntry) float64 {
 	nmales := 0
 	printit := false
@@ -106,6 +116,7 @@ func MaleFrac(ps []PedEntry) float64 {
 	return float64(nmales) / float64(len(ps))
 }
 
+// Sort clusters according to ID number, putting individuals above 10000 first
 func SortClusters(clusters map[string][]PedEntry) []NamedCluster {
 	out := make([]NamedCluster, 0, len(clusters))
 	for cid, cps := range clusters {
@@ -123,6 +134,9 @@ func SortClusters(clusters map[string][]PedEntry) []NamedCluster {
 	return out
 }
 
+// From a set of PedEntries and a tree, produce named clusters of all children
+// of a given parent, assuming that parent is descended from focalID
+// patrilineally.
 func ClusterYs(focalID string, tree map[string]Node, ps ...PedEntry) (unclustered []PedEntry, clusters []NamedCluster) {
 	mclusters := make(map[string][]PedEntry)
 	for _, p := range ps {
@@ -135,6 +149,9 @@ func ClusterYs(focalID string, tree map[string]Node, ps ...PedEntry) (unclustere
 	return unclustered, SortClusters(mclusters)
 }
 
+// Determine whether an individual should be printed. To be printed, either
+// opts.StripUninf must be true, or individual must be descended from the
+// focalID.
 func ShouldPrint(p PedEntry, focalID string, tree map[string]Node, opts GraphVizOpts) bool {
 	if !opts.StripUninf {
 		return true
@@ -142,6 +159,7 @@ func ShouldPrint(p PedEntry, focalID string, tree map[string]Node, opts GraphViz
 	return DadHasY(p, focalID, tree) || HasY(p, focalID, tree) || (p.PaternalID == "0" && p.MaternalID == "0")
 }
 
+// Check if you should print a parent
 func ShouldPrintAParent(p PedEntry, focalID string, tree map[string]Node, opts GraphVizOpts) bool {
 	if !opts.StripUninf {
 		return true
@@ -205,25 +223,30 @@ func PedEntryToGraphVizY(w io.Writer, focalID string, tree map[string]Node, p Pe
 	return n, nil
 }
 
+// Generic unique set type
 type Set[T comparable] struct {
 	m map[T]struct{}
 }
 
+// Generate a ready-to-add-to set.
 func NewSet[T comparable]() *Set[T] {
 	s := new(Set[T])
 	s.m = make(map[T]struct{})
 	return s
 }
 
+// Add an element to the set
 func (s *Set[T]) Add(val T) {
 	s.m[val] = struct{}{}
 }
 
+// Check if the set contains the element "val"
 func (s *Set[T]) Contains(val T) bool {
 	_, ok := s.m[val]
 	return ok
 }
 
+// Convert a PedEntry to a graphviz dot command
 func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[string], prevparentpair *Set[Int64Pair]) (n int, err error) {
 	labeltxt := `, label = ""`
 	if opts.LabelNumber {
@@ -383,6 +406,7 @@ func PedEntryToGraphVizYShape(w io.Writer, focalID string, tree map[string]Node,
 	return n, nil
 }
 
+// A function that encodes a PedEntry to a GraphViz command. PedEntryToGraphVizYShape is the main one.
 type PedEncodeFunc func(w io.Writer, focalID string, tree map[string]Node, p PedEntry, opts GraphVizOpts, prevparent *Set[string], prevparentpair *Set[Int64Pair]) (n int, err error)
 
 func GetStylePedFunc(style string) PedEncodeFunc {
@@ -396,15 +420,18 @@ func GetStylePedFunc(style string) PedEncodeFunc {
 	}
 }
 
+// Convert a float into a percent string
 func Percentify(f float64) string {
 	return fmt.Sprintf("%.0f%%", f*100.0)
 }
 
+// A pair of strings encoding int64 values
 type Int64Pair struct {
 	I0 string
 	I1 string
 }
 
+// Convert a set of PedEntries to GraphViz commands
 func ToGraphVizY(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
 	prevparent := NewSet[string]()
 	prevparentpair := NewSet[Int64Pair]()
@@ -488,6 +515,7 @@ graph [color = "#888888"]
 	return n, nil
 }
 
+// Wrapper for converting PedEntries to GraphViz commands using different formats
 func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err error) {
 	switch opts.Style {
 	case "YShape":
@@ -501,6 +529,7 @@ func ToGraphViz(w io.Writer, opts GraphVizOpts, ps ...PedEntry) (n int, err erro
 	}
 }
 
+// Options for running PedViz
 type GraphVizOpts struct {
 	Style       string
 	FocalID     string
@@ -508,6 +537,7 @@ type GraphVizOpts struct {
 	LabelNumber bool
 }
 
+// Get GraphVizOpts from command line
 func GetOpts() GraphVizOpts {
 	g := GraphVizOpts{}
 	var f string
