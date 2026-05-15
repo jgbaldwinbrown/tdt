@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	github.com/gammazero/deque v0.2.1
 	github.com/jgbaldwinbrown/iterh v0.1.5
 	github.com/jgbaldwinbrown/kolm v0.1.2
 	github.com/jgbaldwinbrown/perf v0.1.1
@@ -16,7 +17,4 @@ require (
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
-require (
-	github.com/gammazero/deque v0.2.1 // indirect
-	github.com/ulikunitz/xz v0.5.12 // indirect
-)
+require github.com/ulikunitz/xz v0.5.12 // indirect
