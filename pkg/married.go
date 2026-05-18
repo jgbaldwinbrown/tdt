@@ -9,6 +9,7 @@ import (
 	"maps"
 	"math/rand"
 	"os"
+	"slices"
 )
 
 func SingleMatch(paternalIdx int, pok bool, maternalIdx int, mok bool) (int, bool) {
@@ -35,11 +36,11 @@ func CombineClusters(c0, c1 map[string]struct{}) map[string]struct{} {
 	return c2
 }
 
-func ClusterParents(tree map[string]Node) map[int]map[string]struct{} {
+func ClusterParents(ped []PedEntry) (clusters map[int]map[string]struct{}, cluster_order []int) {
 	n := 0
-	clusters := map[int]map[string]struct{}{}
-	clusterMap := make(map[string]int, len(tree))
-	for _, node := range tree {
+	clusters = map[int]map[string]struct{}{}
+	clusterMap := make(map[string]int, len(ped))
+	for _, node := range ped {
 		pi, pok := clusterMap[node.PaternalID]
 		mi, mok := clusterMap[node.MaternalID]
 		if !pok && !mok {
@@ -65,7 +66,12 @@ func ClusterParents(tree map[string]Node) map[int]map[string]struct{} {
 			n++
 		}
 	}
-	return clusters
+	cluster_order = make([]int, 0, len(clusters))
+	for i, _ := range clusters {
+		cluster_order = append(cluster_order, i)
+	}
+	slices.Sort(cluster_order)
+	return clusters, cluster_order
 }
 
 func PrintClusters(w io.Writer, clusters map[int]map[string]struct{}) error {
@@ -90,9 +96,10 @@ func PrintClusters(w io.Writer, clusters map[int]map[string]struct{}) error {
 	return nil
 }
 
-func FlipClustersSexes(clusters map[int]map[string]struct{}, tree map[string]Node, rng *rand.Rand) map[string]Node {
+func FlipClustersSexes(clusters map[int]map[string]struct{}, cluster_order []int, tree map[string]Node, rng *rand.Rand) map[string]Node {
 	out := maps.Clone(tree)
-	for _, cluster := range clusters {
+	for _, i := range cluster_order {
+		cluster := clusters[i]
 		flip := rng.Float64() < 0.5
 		for id, _ := range cluster {
 			node, ok := out[id]
@@ -131,9 +138,13 @@ func FullFlipParentClusters() {
 		log.Fatal(e)
 	}
 	tree := BuildPedTree(ped...)
-	clusters := ClusterParents(tree)
-	tree2 := FlipClustersSexes(clusters, tree, rng)
-	for _, node := range tree2 {
+	clusters, cluster_order := ClusterParents(ped)
+	tree2 := FlipClustersSexes(clusters, cluster_order, tree, rng)
+	for _, ent := range ped {
+		node, ok := tree2[ent.IndividualID]
+		if !ok {
+			continue
+		}
 		if e := PrintPedEntry(w, node.PedEntry); e != nil {
 			log.Fatal(e)
 		}
