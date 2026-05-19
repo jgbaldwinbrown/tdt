@@ -15,6 +15,7 @@ require (
 	github.com/jgbaldwinbrown/perf v0.1.1
 	github.com/jgbaldwinbrown/zfile v0.1.13
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	golang.org/x/sync v0.11.0
 )
 
 require github.com/ulikunitz/xz v0.5.12 // indirect

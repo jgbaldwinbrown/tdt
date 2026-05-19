@@ -2,6 +2,7 @@ package tdt
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +11,9 @@ import (
 	"math/rand"
 	"os"
 	"slices"
+
+	"golang.org/x/sync/errgroup"
+	"github.com/jgbaldwinbrown/zfile"
 )
 
 func SingleMatch(paternalIdx int, pok bool, maternalIdx int, mok bool) (int, bool) {
@@ -116,7 +120,10 @@ func FlipClustersSexes(clusters map[int]map[string]struct{}, cluster_order []int
 }
 
 type flipParentClustersFlags struct {
+	Replicates int
+	Outpre string
 	RngSeed int64
+	Threads int
 }
 
 func FullFlipParentClusters() {
@@ -148,5 +155,64 @@ func FullFlipParentClusters() {
 		if e := PrintPedEntry(w, node.PedEntry); e != nil {
 			log.Fatal(e)
 		}
+	}
+}
+
+func FlipParentClustersPath(ped []PedEntry, tree map[string]Node, clusters map[int]map[string]struct{}, cluster_order []int, outpath string, seed int64) (err error) {
+	rng := rand.New(rand.NewSource(seed))
+
+	w, e := zfile.Create(outpath)
+	if e != nil {
+		return e
+	}
+	defer func() {
+		err = errors.Join(err, w.Close())
+	}()
+
+	tree2 := FlipClustersSexes(clusters, cluster_order, tree, rng)
+	for _, ent := range ped {
+		node, ok := tree2[ent.IndividualID]
+		if !ok {
+			continue
+		}
+		if e := PrintPedEntry(w, node.PedEntry); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
+func FullFlipParentClustersMulti() {
+	var f flipParentClustersFlags
+	flag.Int64Var(&f.RngSeed, "s", 0, "64-bit integer for RNG seed")
+	flag.IntVar(&f.Threads, "t", 1, "Threads")
+	flag.IntVar(&f.Replicates, "r", 1, "Replicates")
+	flag.StringVar(&f.Outpre, "o", "out", "Prefix for output files")
+	flag.Parse()
+	rng := rand.New(rand.NewSource(f.RngSeed))
+
+	r := bufio.NewReader(os.Stdin)
+
+	ped, e := ParsePedFromReader(r)
+	if e != nil {
+		log.Fatal(e)
+	}
+	tree := BuildPedTree(ped...)
+	clusters, cluster_order := ClusterParents(ped)
+
+	var g errgroup.Group
+	if f.Threads > 0 {
+		g.SetLimit(f.Threads)
+	}
+	for i := 0; i < f.Replicates; i++ {
+		i := i
+		seed := rng.Int63()
+		outpath := fmt.Sprintf("%v_%05v.ped.gz", f.Outpre, i)
+		g.Go(func() error {
+			return FlipParentClustersPath(ped, tree, clusters, cluster_order, outpath, seed)
+		})
+	}
+	if e := g.Wait(); e != nil {
+		log.Fatal(e)
 	}
 }
