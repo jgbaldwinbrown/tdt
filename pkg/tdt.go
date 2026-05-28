@@ -8,6 +8,7 @@ import (
 	"github.com/jgbaldwinbrown/csvh"
 	"gonum.org/v1/gonum/stat/distuv"
 	"io"
+	"iter"
 	"log"
 	"math"
 	"os"
@@ -62,6 +63,59 @@ type PedEntry struct {
 type Node struct {
 	PedEntry
 	ChildIDs map[string]struct{}
+}
+
+func Blank(id string) bool {
+	return id == "0" || id == "999999"
+}
+
+func (n Node) RelativeIDs() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		if !Blank(n.PaternalID) && !yield(n.PaternalID) {
+			return
+		}
+		if !Blank(n.MaternalID) && !yield(n.MaternalID) {
+			return
+		}
+		for id, _ := range n.ChildIDs {
+			if !Blank(id) && !yield(id) {
+				return
+			}
+		}
+	}
+}
+
+func (n Node) RelativeNodes(tree map[string]Node) iter.Seq[Node] {
+	return func(yield func(Node) bool) {
+		for id := range n.RelativeIDs() {
+			node, ok := tree[id]
+			if ok && !yield(node) {
+				return
+			}
+		}
+	}
+}
+
+func (n Node) ParentIDs() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		if !Blank(n.PaternalID) && !yield(n.PaternalID) {
+			return
+		}
+		if !Blank(n.MaternalID) && !yield(n.MaternalID) {
+			return
+		}
+	}
+}
+
+func (n Node) ParentNodes(tree map[string]Node) iter.Seq[Node] {
+	return func(yield func(Node) bool) {
+		for id := range n.ParentIDs() {
+			node, ok := tree[id]
+			if ok && !yield(node) {
+				return
+			}
+		}
+	}
 }
 
 func buildPedTreeInconsistent(ps ...PedEntry) map[string]Node {

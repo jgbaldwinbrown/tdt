@@ -1,6 +1,6 @@
 module github.com/jgbaldwinbrown/tdt
 
-go 1.23.0
+go 1.24
 
 require (
 	github.com/jgbaldwinbrown/csvh v0.1.7
@@ -10,6 +10,7 @@ require (
 
 require (
 	github.com/gammazero/deque v0.2.1
+	github.com/gammazero/toposort v0.2.0
 	github.com/jgbaldwinbrown/iterh v0.1.5
 	github.com/jgbaldwinbrown/kolm v0.1.2
 	github.com/jgbaldwinbrown/perf v0.1.1
