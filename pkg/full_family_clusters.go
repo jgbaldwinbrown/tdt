@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"math"
 
 	"github.com/montanaflynn/stats"
 	"github.com/gammazero/toposort"
@@ -140,6 +142,7 @@ type FamilyStatsBlock struct {
 	SdHeight float64
 	MeanSize float64
 	SdSize float64
+	FamilySizes []float64
 }
 
 func FamilyStats(nodes []Node, tree map[string]Node) (FamilyStatsBlock, error) {
@@ -153,6 +156,11 @@ func FamilyStats(nodes []Node, tree map[string]Node) (FamilyStatsBlock, error) {
 	}
 	var statblock FamilyStatsBlock
 	var e error
+
+	statblock.FamilySizes = slices.Clone(sizes)
+	slices.Sort(statblock.FamilySizes)
+	slices.Reverse(statblock.FamilySizes)
+
 	statblock.NFamilies = len(trees)
 	statblock.MeanHeight, e = stats.Mean(heights)
 	if e != nil {
@@ -176,6 +184,32 @@ func FamilyStats(nodes []Node, tree map[string]Node) (FamilyStatsBlock, error) {
 type TreeStatsBlock struct {
 	MeanKidsPerParent float64
 	SdKidsPerParent float64
+	NumHalfOrphans float64
+	NumOrphans float64
+	NumParented float64
+	NumKids float64
+	MeanParentsPerKid float64
+}
+
+func CountOrphans(tree map[string]Node) (orphans, halforphans int64) {
+	for _, node := range tree {
+		dadOrphan := IsOrphan(node.PaternalID)
+		momOrphan := IsOrphan(node.MaternalID)
+		count := 0
+		if !dadOrphan {
+			count++
+		}
+		if !momOrphan {
+			count++
+		}
+		if count < 1 {
+			orphans++
+		}
+		if count == 1 {
+			halforphans++
+		}
+	}
+	return orphans, halforphans
 }
 
 func TreeStats(tree map[string]Node) (TreeStatsBlock, error) {
@@ -195,7 +229,80 @@ func TreeStats(tree map[string]Node) (TreeStatsBlock, error) {
 	if e != nil {
 		return ts, e
 	}
+	orphans, halforphans := CountOrphans(tree)
+	ts.NumKids = float64(len(tree))
+	ts.NumOrphans = float64(orphans)
+	ts.NumHalfOrphans = float64(halforphans)
+	ts.NumParented = ts.NumKids - (ts.NumOrphans + ts.NumHalfOrphans)
+	ts.MeanParentsPerKid = ((2*ts.NumParented) + ts.NumHalfOrphans) / ts.NumKids
 	return ts, nil
+}
+
+type MarriagesStatBlock struct {
+	NMarriageWebs float64
+	NMarriedPeople float64
+	NEdges float64
+	MeanPeoplePerWeb float64
+	SdPeoplePerWeb float64
+	MeanEdgesPerPerson float64
+	SdEdgesPerPerson float64
+	MarriageSizes []float64
+	MarriageEdges []float64
+	MarriageEdgesPerPerson []float64
+}
+
+func Weigh(values []float64, weights []float64) []float64 {
+	length := 0
+	iweights := make([]int, 0, len(weights))
+	for _, w := range weights {
+		r := int(math.Round(w))
+		length += r
+		iweights = append(iweights, r)
+	}
+	out := make([]float64, 0, length)
+	for i, v := range values {
+		w := iweights[i]
+		for _ = range w {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func MarriagesStats(marriages map[int]map[string]struct{}, marriagesOrder []int, ped []PedEntry, tree map[string]Node) (MarriagesStatBlock, error) {
+	var s MarriagesStatBlock
+	s.MarriageSizes = make([]float64, 0, len(marriages))
+	s.MarriageEdges = make([]float64, 0, len(marriages))
+	s.MarriageEdgesPerPerson = make([]float64, 0, len(marriages))
+	for _, i := range marriagesOrder {
+		mar := marriages[i]
+		s.NMarriageWebs++
+		s.NMarriedPeople += float64(len(mar))
+		s.MarriageSizes = append(s.MarriageSizes, float64(len(mar)))
+		s.MarriageEdges = append(s.MarriageEdges, float64(len(mar)-1))
+		s.MarriageEdgesPerPerson = append(s.MarriageEdgesPerPerson, (2*float64(len(mar)-1)) / float64(len(mar)))
+		s.NEdges += float64(len(mar)-1)
+	}
+	var e error
+	s.MeanPeoplePerWeb, e = stats.Mean(s.MarriageSizes)
+	if e != nil {
+		return s, e
+	}
+	s.SdPeoplePerWeb, e = stats.StandardDeviation(s.MarriageSizes)
+	if e != nil {
+		return s, e
+	}
+
+	weighted := Weigh(s.MarriageEdgesPerPerson, s.MarriageSizes)
+	s.MeanEdgesPerPerson, e = stats.Mean(weighted)
+	if e != nil {
+		return s, e
+	}
+	s.SdEdgesPerPerson, e = stats.StandardDeviation(weighted)
+	if e != nil {
+		return s, e
+	}
+	return s, nil
 }
 
 func FullFamilyStats() {
@@ -204,12 +311,22 @@ func FullFamilyStats() {
 	if e != nil {
 		log.Fatal(e)
 	}
+	ped = UniqPed(ped...)
+
 	tree := BuildPedTree(ped...)
 	treestats, e := TreeStats(tree)
 	if e != nil {
 		log.Fatal(e)
 	}
 	fmt.Printf("%#v\n", treestats)
+
+	marriages, marriagesOrder := ClusterParents(ped)
+	marriagesStats, e := MarriagesStats(marriages, marriagesOrder, ped, tree)
+	if e != nil {
+		log.Fatal(e)
+	}
+	fmt.Printf("%#v\n", marriagesStats)
+
 	nodes := PedToNodes(ped, tree)
 	stats, e := FamilyStats(nodes, tree)
 	if e != nil {
