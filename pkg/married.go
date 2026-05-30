@@ -236,7 +236,6 @@ func FullFlipParentClustersMulti() {
 	if e != nil {
 		log.Fatal(e)
 	}
-	ped = UniqPed(ped...)
 	tree := BuildPedTree(ped...)
 	clusters, cluster_order := ClusterParents(ped)
 
