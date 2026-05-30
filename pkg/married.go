@@ -100,8 +100,44 @@ func PrintClusters(w io.Writer, clusters map[int]map[string]struct{}) error {
 	return nil
 }
 
-func FlipClustersSexes(clusters map[int]map[string]struct{}, cluster_order []int, tree map[string]Node, rng *rand.Rand) map[string]Node {
+// Shuffle all phenotypes
+func shufPedPhenoTree(ps []PedEntry, tree map[string]Node, r *rand.Rand) {
+	r.Shuffle(len(ps), func(i, j int) {
+		ps[i].Phenotype, ps[j].Phenotype = ps[j].Phenotype, ps[i].Phenotype
+
+		nodei := tree[ps[i].IndividualID]
+		nodei.Phenotype = ps[i].Phenotype
+		tree[ps[i].IndividualID] = nodei
+
+		nodej := tree[ps[j].IndividualID]
+		nodej.Phenotype = ps[j].Phenotype
+		tree[ps[j].IndividualID] = nodej
+	})
+}
+
+func FlipClustersSexes(clusters map[int]map[string]struct{}, cluster_order []int, ped []PedEntry, tree map[string]Node, rng *rand.Rand, flipSingles bool) map[string]Node {
 	out := maps.Clone(tree)
+
+	if flipSingles {
+		unclusteredMap := make(map[string]struct{}, len(ped))
+		for _, ent := range ped {
+			unclusteredMap[ent.IndividualID] = struct{}{}
+		}
+		for _, i := range cluster_order {
+			clu := clusters[i]
+			for id, _ := range clu {
+				delete(unclusteredMap, id)
+			}
+		}
+		unclustered := make([]PedEntry, 0, len(unclusteredMap))
+		for _, ent := range ped {
+			if _, ok := unclusteredMap[ent.IndividualID]; ok {
+				unclustered = append(unclustered, ent)
+			}
+		}
+		shufPedPhenoTree(unclustered, out, rng)
+	}
+
 	for _, i := range cluster_order {
 		cluster := clusters[i]
 		flip := rng.Float64() < 0.5
@@ -124,11 +160,13 @@ type flipParentClustersFlags struct {
 	Outpre string
 	RngSeed int64
 	Threads int
+	FlipSingles bool
 }
 
 func FullFlipParentClusters() {
 	var f flipParentClustersFlags
 	flag.Int64Var(&f.RngSeed, "s", 0, "64-bit integer for RNG seed")
+	flag.BoolVar(&f.FlipSingles, "flip_singles", false, "In addition to parent sets, also randomly shuffle singleton sexes.")
 	flag.Parse()
 	rng := rand.New(rand.NewSource(f.RngSeed))
 
@@ -146,7 +184,7 @@ func FullFlipParentClusters() {
 	}
 	tree := BuildPedTree(ped...)
 	clusters, cluster_order := ClusterParents(ped)
-	tree2 := FlipClustersSexes(clusters, cluster_order, tree, rng)
+	tree2 := FlipClustersSexes(clusters, cluster_order, ped, tree, rng, f.FlipSingles)
 	for _, ent := range ped {
 		node, ok := tree2[ent.IndividualID]
 		if !ok {
@@ -158,7 +196,7 @@ func FullFlipParentClusters() {
 	}
 }
 
-func FlipParentClustersPath(ped []PedEntry, tree map[string]Node, clusters map[int]map[string]struct{}, cluster_order []int, outpath string, seed int64) (err error) {
+func FlipParentClustersPath(ped []PedEntry, tree map[string]Node, clusters map[int]map[string]struct{}, cluster_order []int, outpath string, seed int64, flipSingles bool) (err error) {
 	rng := rand.New(rand.NewSource(seed))
 
 	w, e := zfile.Create(outpath)
@@ -169,7 +207,7 @@ func FlipParentClustersPath(ped []PedEntry, tree map[string]Node, clusters map[i
 		err = errors.Join(err, w.Close())
 	}()
 
-	tree2 := FlipClustersSexes(clusters, cluster_order, tree, rng)
+	tree2 := FlipClustersSexes(clusters, cluster_order, ped, tree, rng, flipSingles)
 	for _, ent := range ped {
 		node, ok := tree2[ent.IndividualID]
 		if !ok {
@@ -188,6 +226,7 @@ func FullFlipParentClustersMulti() {
 	flag.IntVar(&f.Threads, "t", 1, "Threads")
 	flag.IntVar(&f.Replicates, "r", 1, "Replicates")
 	flag.StringVar(&f.Outpre, "o", "out", "Prefix for output files")
+	flag.BoolVar(&f.FlipSingles, "flip_singles", false, "In addition to parent sets, also randomly shuffle singleton sexes.")
 	flag.Parse()
 	rng := rand.New(rand.NewSource(f.RngSeed))
 
@@ -197,6 +236,7 @@ func FullFlipParentClustersMulti() {
 	if e != nil {
 		log.Fatal(e)
 	}
+	ped = UniqPed(ped...)
 	tree := BuildPedTree(ped...)
 	clusters, cluster_order := ClusterParents(ped)
 
@@ -209,7 +249,7 @@ func FullFlipParentClustersMulti() {
 		seed := rng.Int63()
 		outpath := fmt.Sprintf("%v_%05v.ped.gz", f.Outpre, i)
 		g.Go(func() error {
-			return FlipParentClustersPath(ped, tree, clusters, cluster_order, outpath, seed)
+			return FlipParentClustersPath(ped, tree, clusters, cluster_order, outpath, seed, f.FlipSingles)
 		})
 	}
 	if e := g.Wait(); e != nil {
