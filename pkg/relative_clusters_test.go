@@ -2,7 +2,6 @@ package tdt
 
 import (
 	"testing"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -25,7 +24,7 @@ func TestRelativeClusters(t *testing.T) {
 	tree := BuildPedTree(slices.Collect(ToPedEntries(slices.Values(warp)))...)
 	goods := slices.Collect(ToIndividualID(FilterPed(slices.Values(warp), 0.45)))
 	clusters := RelativeClusters(tree, 1, goods...)
-	fmt.Println("clusters:", clusters)
-	fmt.Println("tree:", tree)
-	fmt.Println("goods:", goods)
+	t.Log("clusters:", clusters)
+	t.Log("tree:", tree)
+	t.Log("goods:", goods)
 }

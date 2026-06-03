@@ -8,6 +8,21 @@ import (
 	"slices"
 )
 
+func CanonicalPed(ped []PedEntry) []PedEntry {
+	tree := BuildPedTree(ped...)
+	return CanonicalTree(tree)
+}
+
+func CanonicalTree(tree map[string]Node) []PedEntry {
+	ids := slices.Collect(maps.Keys(tree))
+	slices.Sort(ids)
+	out := make([]PedEntry, 0, len(tree))
+	for _, id := range ids {
+		out = append(out, tree[id].PedEntry)
+	}
+	return out
+}
+
 func FullCanonicalTree() {
 	r := bufio.NewReader(os.Stdin)
 	w := bufio.NewWriter(os.Stdout)
