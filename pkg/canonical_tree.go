@@ -23,6 +23,16 @@ func CanonicalTree(tree map[string]Node) []PedEntry {
 	return out
 }
 
+func CanonicalTreeNodes(tree map[string]Node) []Node {
+	ids := slices.Collect(maps.Keys(tree))
+	slices.Sort(ids)
+	out := make([]Node, 0, len(tree))
+	for _, id := range ids {
+		out = append(out, tree[id])
+	}
+	return out
+}
+
 func FullCanonicalTree() {
 	r := bufio.NewReader(os.Stdin)
 	w := bufio.NewWriter(os.Stdout)

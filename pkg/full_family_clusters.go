@@ -90,18 +90,41 @@ func ToposortTree(tree map[string]Node) []Node {
 
 	edges := []toposort.Edge[string]{}
 	for _, node := range tree {
-		for child, _ := range node.ChildIDs {
-			edges = append(edges, toposort.Edge[string]{node.IndividualID, child})
+		if !IsOrphan(node.PaternalID) {
+			edges = append(edges, toposort.Edge[string]{node.PaternalID, node.IndividualID})
+		}
+		if !IsOrphan(node.MaternalID) {
+			edges = append(edges, toposort.Edge[string]{node.MaternalID, node.IndividualID})
 		}
 	}
+	// for _, node := range tree {
+	// 	for child, _ := range node.ChildIDs {
+	// 		edges = append(edges, toposort.Edge[string]{node.IndividualID, child})
+	// 	}
+	// }
 	sorted, e := toposort.Toposort(edges)
 	if e != nil {
 		panic(e)
 	}
-	out := make([]Node, 0, len(sorted))
+
+	canonical := CanonicalTreeNodes(tree)
+
+	outMap := make(map[string]Node, len(canonical))
+	out := make([]Node, 0, len(canonical))
 	for _, id := range sorted {
-		out = append(out, tree[id])
+		if _, ok := outMap[id]; !ok {
+			out = append(out, tree[id])
+			outMap[id] = tree[id]
+		}
 	}
+
+	for _, node := range canonical {
+		if _, ok := outMap[node.IndividualID]; !ok && !IsOrphan(node.IndividualID) {
+			out = append(out, node)
+			outMap[node.IndividualID] = node
+		}
+	}
+
 	return out
 }
 

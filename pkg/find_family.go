@@ -12,7 +12,7 @@ import (
 )
 
 func IsOrphan(id string) bool {
-	return id == "0" || id == "999999"
+	return id == "0" || id == "999999" || id == ""
 }
 
 func InMap[M ~map[K]V, K comparable, V any](m M, k K) bool {
