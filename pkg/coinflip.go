@@ -28,7 +28,7 @@ func FindSexConflicts(nodes []Node, tree map[string]Node) []NodePair {
 		hasMat := !IsOrphan(n.MaternalID)
 		pat := tree[n.PaternalID]
 		mat := tree[n.MaternalID]
-		if hasPat && hasMat && pat.Sex == mat.Sex {
+		if hasPat && hasMat && pat.Phenotype == mat.Phenotype {
 			out = append(out, NodePair{pat, mat})
 		}
 	}
@@ -63,16 +63,16 @@ func ResolveConflicts(conflicts []NodePair, topoNodes []Node, tree map[string]No
 	for _, conflict := range conflicts {
 		p := tree[conflict.N0.IndividualID]
 		m := tree[conflict.N1.IndividualID]
-		if p.Sex == m.Sex {
+		if p.Phenotype == m.Phenotype {
 			newsex := int64(1)
 			if rng.Float64() < maleProb {
 				newsex = 2
 			}
 			if rng.Float64() < 0.5 {
-				p.Sex = newsex
+				p.Phenotype = newsex
 				tree[p.IndividualID] = p
 			} else {
-				m.Sex = newsex
+				m.Phenotype = newsex
 				tree[m.IndividualID] = m
 			}
 		}
@@ -92,9 +92,9 @@ func CoinflipNodes(topoNodes []Node, maleProb float64, rng *rand.Rand) {
 		node := &topoNodes[i]
 		flip := rng.Float64()
 		if flip < maleProb {
-			node.Sex = SexMale
+			node.Phenotype = SexMale
 		} else {
-			node.Sex = SexFemale
+			node.Phenotype = SexFemale
 		}
 	}
 	tree := BuildPedTree(NodesToPed(topoNodes)...)
