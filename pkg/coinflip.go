@@ -43,7 +43,7 @@ func NodesToPed(nodes []Node) []PedEntry {
 	return peds
 }
 
-func CoinflipTree(tree map[string]Node, maleProb float64, rng *rand.Rand) []Node {
+func CoinflipTree(tree map[string]Node, maleProb float64, rng *rand.Rand, noconflict bool) []Node {
 	log.Println("pre-ToposortTree tree length:", len(tree))
 	topo := ToposortTree(tree)
 	log.Println("topo length:", len(topo))
@@ -54,8 +54,8 @@ func CoinflipTree(tree map[string]Node, maleProb float64, rng *rand.Rand) []Node
 			i++
 		}
 	}
-	CoinflipNodes(topo, maleProb, rng)
-	log.Println("post-CoinflipNodes topo length:", len(topo))
+	CoinflipNodes(topo, maleProb, rng, noconflict)
+	log.Println("post-CoinflipNodes topo length:", len(topo), noconflict)
 	return topo
 }
 
@@ -87,7 +87,7 @@ const (
 	SexFemale = 2
 )
 
-func CoinflipNodes(topoNodes []Node, maleProb float64, rng *rand.Rand) {
+func CoinflipNodes(topoNodes []Node, maleProb float64, rng *rand.Rand, noconflict bool) {
 	for i, _ := range topoNodes {
 		node := &topoNodes[i]
 		flip := rng.Float64()
@@ -98,16 +98,18 @@ func CoinflipNodes(topoNodes []Node, maleProb float64, rng *rand.Rand) {
 		}
 	}
 	tree := BuildPedTree(NodesToPed(topoNodes)...)
-	conflicts := FindSexConflicts(topoNodes, tree)
-	log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
-	for len(conflicts) > 0 {
-		ResolveConflicts(conflicts, topoNodes, tree, maleProb, rng)
-		conflicts = FindSexConflicts(topoNodes, tree)
+	if !noconflict {
+		conflicts := FindSexConflicts(topoNodes, tree)
 		log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
+		for len(conflicts) > 0 {
+			ResolveConflicts(conflicts, topoNodes, tree, maleProb, rng)
+			conflicts = FindSexConflicts(topoNodes, tree)
+			log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
+		}
 	}
 }
 
-func CoinflipParentClustersPath(tree map[string]Node, outpath string, seed int64, maleprob float64) (err error) {
+func CoinflipParentClustersPath(tree map[string]Node, outpath string, seed int64, maleprob float64, noconflict bool) (err error) {
 	rng := rand.New(rand.NewSource(seed))
 
 	w, e := zfile.Create(outpath)
@@ -118,7 +120,7 @@ func CoinflipParentClustersPath(tree map[string]Node, outpath string, seed int64
 		err = errors.Join(err, w.Close())
 	}()
 
-	nodes := CoinflipTree(tree, maleprob, rng)
+	nodes := CoinflipTree(tree, maleprob, rng, noconflict)
 	log.Print("post-coinflip nodes length:", len(nodes))
 	for _, node := range nodes {
 		if e := PrintPedEntry(w, node.PedEntry); e != nil {
@@ -134,6 +136,7 @@ type coinflipParentClustersFlags struct {
 	RngSeed int64
 	Threads int
 	MaleProb float64
+	NoConflictFix bool
 }
 
 func FullCoinflipMulti() {
@@ -143,6 +146,7 @@ func FullCoinflipMulti() {
 	flag.IntVar(&f.Replicates, "r", 1, "Replicates")
 	flag.StringVar(&f.Outpre, "o", "out", "Prefix for output files")
 	flag.Float64Var(&f.MaleProb, "m", 0.5, "Proportion of males to put in permuted files")
+	flag.BoolVar(&f.NoConflictFix, "c", false, "Do not fix same-sex mating conflicts")
 	flag.Parse()
 	rng := rand.New(rand.NewSource(f.RngSeed))
 
@@ -166,7 +170,7 @@ func FullCoinflipMulti() {
 		seed := rng.Int63()
 		outpath := fmt.Sprintf("%v_%05v.ped.gz", f.Outpre, i)
 		g.Go(func() error {
-			return CoinflipParentClustersPath(tree, outpath, seed, f.MaleProb)
+			return CoinflipParentClustersPath(tree, outpath, seed, f.MaleProb, f.NoConflictFix)
 		})
 	}
 	if e := g.Wait(); e != nil {
