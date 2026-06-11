@@ -89,6 +89,16 @@ func ReadLines(path string) (lines []string, err error) {
 	return lines, s.Err()
 }
 
+// Read all lines of a file into a slice
+func readReaderLines(r io.Reader) (lines []string, err error) {
+	s := bufio.NewScanner(r)
+	s.Buffer([]byte{}, 1e15)
+	for s.Scan() {
+		lines = append(lines, s.Text())
+	}
+	return lines, s.Err()
+}
+
 func PrintPedEntry(w io.Writer, p PedEntry) error {
 	_, e := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n", p.FamilyID, p.IndividualID, p.PaternalID, p.MaternalID, p.Sex, p.Phenotype)
 	return e

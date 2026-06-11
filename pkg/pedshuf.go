@@ -83,6 +83,82 @@ func WritePedPath(path string, ps []PedEntry) (err error) {
 	return WritePed(w, ps)
 }
 
+type HistEntry struct {
+	MaleCount float64
+	FemaleCount float64
+	TotalCount float64
+	OtherCount float64
+}
+
+func (h HistEntry) MaleFrac() float64 {
+	return h.MaleCount / (h.MaleCount+h.FemaleCount)
+}
+
+type Hist struct {
+	Hist map[string]HistEntry
+	Order []string
+}
+
+func (h *Hist) AddPedEntry(p PedEntry) {
+	if _, ok := h.Hist[p.IndividualID]; !ok {
+		h.Hist[p.IndividualID] = HistEntry{}
+		h.Order = append(h.Order, p.IndividualID)
+	}
+	ent := h.Hist[p.IndividualID]
+	if p.Phenotype == 1 {
+		ent.MaleCount++
+	} else if p.Phenotype == 2 {
+		ent.FemaleCount++
+	} else {
+		ent.OtherCount++
+	}
+	ent.TotalCount++
+	h.Hist[p.IndividualID] = ent
+}
+
+func (h *Hist) AddPedPath(path string) error {
+	ps, e := ParsePedPathMaybe(path)
+	if e != nil {
+		return e
+	}
+	for _, ent := range ps {
+		h.AddPedEntry(ent)
+	}
+	return nil
+}
+
+func (h *Hist) WriteTo(w io.Writer) error {
+	if _, e := fmt.Fprintf(w, "ID\tmale_frac\tmale_count\tfemale_count\tother_count\ttotal_count\n"); e != nil {
+		return e
+	}
+	for _, id := range h.Order {
+		ent := h.Hist[id]
+		_, e := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
+			id,
+			ent.MaleFrac(),
+			ent.MaleCount,
+			ent.FemaleCount,
+			ent.OtherCount,
+			ent.TotalCount,
+		)
+		if e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
+func HitHist(paths []string) (*Hist, error) {
+	h := new(Hist)
+	h.Hist = make(map[string]HistEntry)
+	for _, path := range paths {
+		if e := h.AddPedPath(path); e != nil {
+			return h, e
+		}
+	}
+	return h, nil
+}
+
 // Run the whole pedigree shuffling program on the command line
 func FullShufPedSex() {
 	var f ShufPedSexFlags
@@ -111,5 +187,19 @@ func FullShufPedSex() {
 		if e := WritePedPath(opath, ps); e != nil {
 			log.Fatal(e)
 		}
+	}
+}
+
+func FullShufHist() {
+	paths, e := readReaderLines(os.Stdin)
+	if e != nil {
+		log.Fatal(e)
+	}
+	hist, e := HitHist(paths)
+	if e != nil {
+		log.Fatal(e)
+	}
+	if e := hist.WriteTo(os.Stdout); e != nil {
+		log.Fatal(e)
 	}
 }

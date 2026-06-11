@@ -44,18 +44,18 @@ func NodesToPed(nodes []Node) []PedEntry {
 }
 
 func CoinflipTree(tree map[string]Node, maleProb float64, rng *rand.Rand, noconflict bool) []Node {
-	log.Println("pre-ToposortTree tree length:", len(tree))
+	// log.Println("pre-ToposortTree tree length:", len(tree))
 	topo := ToposortTree(tree)
-	log.Println("topo length:", len(topo))
-	i := 0
-	for _, node := range topo {
-		if _, ok := tree[node.IndividualID]; !ok {
-			log.Printf("extra node %v: %#v\n", i, node)
-			i++
-		}
-	}
+	// log.Println("topo length:", len(topo))
+	//i := 0
+	//for _, node := range topo {
+	//	if _, ok := tree[node.IndividualID]; !ok {
+	//		log.Printf("extra node %v: %#v\n", i, node)
+	//		i++
+	//	}
+	//}
 	CoinflipNodes(topo, maleProb, rng, noconflict)
-	log.Println("post-CoinflipNodes topo length:", len(topo), noconflict)
+	// log.Println("post-CoinflipNodes topo length:", len(topo), noconflict)
 	return topo
 }
 
@@ -100,11 +100,11 @@ func CoinflipNodes(topoNodes []Node, maleProb float64, rng *rand.Rand, noconflic
 	tree := BuildPedTree(NodesToPed(topoNodes)...)
 	if !noconflict {
 		conflicts := FindSexConflicts(topoNodes, tree)
-		log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
+		// log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
 		for len(conflicts) > 0 {
 			ResolveConflicts(conflicts, topoNodes, tree, maleProb, rng)
 			conflicts = FindSexConflicts(topoNodes, tree)
-			log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
+			// log.Printf("len(conflicts): %v; conflicts: %v\n", len(conflicts), conflicts)
 		}
 	}
 }
@@ -121,7 +121,7 @@ func CoinflipParentClustersPath(tree map[string]Node, outpath string, seed int64
 	}()
 
 	nodes := CoinflipTree(tree, maleprob, rng, noconflict)
-	log.Print("post-coinflip nodes length:", len(nodes))
+	// log.Print("post-coinflip nodes length:", len(nodes))
 	for _, node := range nodes {
 		if e := PrintPedEntry(w, node.PedEntry); e != nil {
 			return e
@@ -157,9 +157,9 @@ func FullCoinflipMulti() {
 		log.Fatal(e)
 	}
 	ped = CanonicalPed(ped)
-	log.Print("ped length:", len(ped))
+	// log.Print("ped length:", len(ped))
 	tree := BuildPedTree(ped...)
-	log.Print("tree length:", len(tree))
+	// log.Print("tree length:", len(tree))
 
 	var g errgroup.Group
 	if f.Threads > 0 {
