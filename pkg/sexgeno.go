@@ -9,7 +9,7 @@ import (
 
 // Force phenotype to match sex
 func SexPheno(p *PedEntry) {
-	p.Phenotype = p.Sex
+	p.Phenotype = float64(p.Sex)
 }
 
 // Shuffle all phenotypes

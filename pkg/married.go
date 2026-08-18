@@ -147,7 +147,7 @@ func FlipClustersSexes(clusters map[int]map[string]struct{}, cluster_order []int
 				continue
 			}
 			if flip {
-				node.Phenotype = (node.Phenotype%2)+1
+				node.Phenotype = float64((int64(node.Phenotype)%2)+1)
 				out[id] = node
 			}
 		}

@@ -23,7 +23,7 @@ func EntryToPedEntry(ent Entry) PedEntry {
 	if e != nil {
 		sex = 0
 	}
-	pheno, e := strconv.ParseInt(ent.Phenotype, 0, 64)
+	pheno, e := strconv.ParseFloat(ent.Phenotype, 64)
 	if e != nil {
 		pheno = 0
 	}

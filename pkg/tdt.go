@@ -56,7 +56,7 @@ type PedEntry struct {
 	PaternalID   string
 	MaternalID   string
 	Sex          int64
-	Phenotype    int64
+	Phenotype    float64
 }
 
 // A pedigreed individual and a map containing all of their offspring's individual IDs

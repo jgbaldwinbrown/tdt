@@ -69,10 +69,10 @@ func ResolveConflicts(conflicts []NodePair, topoNodes []Node, tree map[string]No
 				newsex = 2
 			}
 			if rng.Float64() < 0.5 {
-				p.Phenotype = newsex
+				p.Phenotype = float64(newsex)
 				tree[p.IndividualID] = p
 			} else {
-				m.Phenotype = newsex
+				m.Phenotype = float64(newsex)
 				tree[m.IndividualID] = m
 			}
 		}

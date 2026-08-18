@@ -131,7 +131,7 @@ func ToPedEntry(e Entry) PedEntry {
 	if err != nil {
 		panic(err)
 	}
-	phen, err := strconv.ParseInt(e.Phenotype, 0, 64)
+	phen, err := strconv.ParseFloat(e.Phenotype, 64)
 	if err != nil {
 		panic(err)
 	}

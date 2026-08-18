@@ -166,6 +166,7 @@ type FamilyStatsBlock struct {
 	MeanSize float64
 	SdSize float64
 	FamilySizes []float64
+	FamilyHeights []float64
 }
 
 func FamilyStats(nodes []Node, tree map[string]Node) (FamilyStatsBlock, error) {
@@ -179,6 +180,10 @@ func FamilyStats(nodes []Node, tree map[string]Node) (FamilyStatsBlock, error) {
 	}
 	var statblock FamilyStatsBlock
 	var e error
+
+	statblock.FamilyHeights = heights
+	slices.Sort(statblock.FamilyHeights)
+	slices.Reverse(statblock.FamilyHeights)
 
 	statblock.FamilySizes = slices.Clone(sizes)
 	slices.Sort(statblock.FamilySizes)
