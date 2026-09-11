@@ -51,7 +51,7 @@ func ParsePedPathMaybe(path string) ([]PedEntry, error) {
 
 // Write out ped entry
 func WritePedEntry(w io.Writer, p PedEntry) error {
-	_, e := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n",
+	_, e := fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v",
 		p.FamilyID,
 		p.IndividualID,
 		p.PaternalID,
@@ -59,6 +59,15 @@ func WritePedEntry(w io.Writer, p PedEntry) error {
 		p.Sex,
 		p.Phenotype,
 	)
+	if e != nil {
+		return e
+	}
+	for _, v := range p.Extra {
+		if _, e := fmt.Fprintf(w, "\t%v", v); e != nil {
+			return e
+		}
+	}
+	_, e = fmt.Fprintf(w, "\n")
 	return e
 }
 

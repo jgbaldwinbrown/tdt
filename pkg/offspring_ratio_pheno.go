@@ -31,14 +31,28 @@ func OffspringRatioPhenos(r io.Reader, w io.Writer, f OffspringRatioPhenosFlags)
 				maleKids++
 			}
 		}
-		ent.Phenotype = 0.5
-		if len(node.ChildIDs) > 0 && node.Sex == 1 {
-			if !f.Female {
-				ent.Phenotype = float64(maleKids) / float64(len(node.ChildIDs))
-			} else {
-				ent.Phenotype = (float64(len(node.ChildIDs)) - float64(maleKids)) / float64(len(node.ChildIDs))
+		if !f.Counts {
+			ent.Phenotype = 0.5
+			if len(node.ChildIDs) > 0 && node.Sex == 1 {
+				if !f.Female {
+					ent.Phenotype = float64(maleKids) / float64(len(node.ChildIDs))
+				} else {
+					ent.Phenotype = (float64(len(node.ChildIDs)) - float64(maleKids)) / float64(len(node.ChildIDs))
+				}
+			}
+		} else {
+			ent.Phenotype = 0
+			ent.Extra = append(ent.Extra, 0)
+			if len(node.ChildIDs) > 0 && node.Sex == 1 {
+				ent.Extra[0] = len(node.ChildIDs)
+				if !f.Female {
+					ent.Phenotype = float64(maleKids)
+				} else {
+					ent.Phenotype = float64(len(node.ChildIDs) - maleKids)
+				}
 			}
 		}
+					
 		if e := WritePedEntry(w, ent); e != nil {
 			return e
 		}
@@ -48,11 +62,13 @@ func OffspringRatioPhenos(r io.Reader, w io.Writer, f OffspringRatioPhenosFlags)
 
 type OffspringRatioPhenosFlags struct {
 	Female bool
+	Counts bool
 }
 
 func FullOffspringRatioPhenos() {
 	var f OffspringRatioPhenosFlags
 	flag.BoolVar(&f.Female, "f", false, "Set phenotypes to female ratio")
+	flag.BoolVar(&f.Counts, "c", false, "Output counts, not ratio")
 	flag.Parse()
 
 	r := bufio.NewReader(os.Stdin)

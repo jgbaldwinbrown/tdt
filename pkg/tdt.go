@@ -13,7 +13,6 @@ import (
 	"math"
 	"os"
 	"regexp"
-	"strings"
 )
 
 // Calculate the Chi Squared value for a set trios where b is the number of males and c is the number of females
@@ -57,6 +56,7 @@ type PedEntry struct {
 	MaternalID   string
 	Sex          int64
 	Phenotype    float64
+	Extra []any
 }
 
 // A pedigreed individual and a map containing all of their offspring's individual IDs
@@ -140,9 +140,9 @@ func buildPedTreeInconsistent(ps ...PedEntry) map[string]Node {
 // Set the maternal and paternal IDs of n to match p, unless n's IDs are set to the orphan values of 0 or 999999
 func UpdateNode(n Node, p PedEntry) (Node, error) {
 	var err error
-	if n.PedEntry != p {
-		// err = fmt.Errorf("n.PedEntry %#v != p %#v", n.PedEntry, p)
-	}
+	// if n.PedEntry != p {
+	// 	// err = fmt.Errorf("n.PedEntry %#v != p %#v", n.PedEntry, p)
+	// }
 	if n.PaternalID == "999999" || n.PaternalID == "0" {
 		n.PaternalID = p.PaternalID
 	}
@@ -478,8 +478,10 @@ func Scan(line []string, ptrs ...any) (n int, err error) {
 	return n, nil
 }
 
+var spaceRe = regexp.MustCompile(` |	`)
+
 func ParsePedEntry(s string) (PedEntry, error) {
-	line := strings.Fields(s)
+	line := spaceRe.Split(s, -1)
 	var p PedEntry
 	if len(line) < 6 {
 		return p, fmt.Errorf("len(line) %v < 6", len(line))
@@ -511,7 +513,8 @@ func ParsePedFromReader(r io.Reader) ([]PedEntry, error) {
 
 		p, e := ParsePedEntry(s.Text())
 		if e != nil {
-			return nil, e
+			log.Printf("ParsePedFromReader: %v", e)
+			continue
 		}
 		ps = append(ps, p)
 	}
