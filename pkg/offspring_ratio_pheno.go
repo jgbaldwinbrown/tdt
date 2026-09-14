@@ -6,8 +6,23 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 )
+
+func TreePhenoToSex(tree map[string]Node) {
+	for id, node := range tree {
+		node.Sex = int64(math.Round(node.Phenotype))
+		tree[id] = node
+	}
+}
+
+func PhenoToSex(ped []PedEntry) {
+	for i, node := range ped {
+		node.Sex = int64(math.Round(node.Phenotype))
+		ped[i] = node
+	}
+}
 
 func OffspringRatioPhenos(r io.Reader, w io.Writer, f OffspringRatioPhenosFlags) error {
 	ped, e := ParsePedFromReader(r)
@@ -15,6 +30,9 @@ func OffspringRatioPhenos(r io.Reader, w io.Writer, f OffspringRatioPhenosFlags)
 		log.Fatal(e)
 	}
 	tree := BuildPedTree(ped...)
+	if f.FromPheno {
+		TreePhenoToSex(tree)
+	}
 	ped = CanonicalTree(tree)
 	for _, ent := range ped {
 		node, ok := tree[ent.IndividualID]
@@ -63,12 +81,14 @@ func OffspringRatioPhenos(r io.Reader, w io.Writer, f OffspringRatioPhenosFlags)
 type OffspringRatioPhenosFlags struct {
 	Female bool
 	Counts bool
+	FromPheno bool
 }
 
 func FullOffspringRatioPhenos() {
 	var f OffspringRatioPhenosFlags
 	flag.BoolVar(&f.Female, "f", false, "Set phenotypes to female ratio")
 	flag.BoolVar(&f.Counts, "c", false, "Output counts, not ratio")
+	flag.BoolVar(&f.FromPheno, "frompheno", false, "calculate offspring sex ratio based on phenotype column, not sex column")
 	flag.Parse()
 
 	r := bufio.NewReader(os.Stdin)
