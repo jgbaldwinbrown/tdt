@@ -1,18 +1,28 @@
 package tdt
 
 import (
+	"bufio"
 	"cmp"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"io/fs"
+	"iter"
+	"log"
+	"math"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+
 	"github.com/jgbaldwinbrown/csvh"
 	"github.com/jgbaldwinbrown/iterh"
 	stat "github.com/jgbaldwinbrown/perf/pkg/stats"
 	"github.com/montanaflynn/stats"
-	"io"
-	"iter"
-	"log"
-	"slices"
+	"golang.org/x/sync/errgroup"
 )
 
 // An entry from WARP's output, an extended .ped file
@@ -271,7 +281,7 @@ func GetAllBestZscoresTopN(its iter.Seq[iter.Seq2[Entry, error]], n int) ([][]fl
 		if e != nil {
 			return nil, e
 		}
-		best := TopN(iterh.SliceIter(zs), n)
+		best := TopN(iterh.SliceIter(zs), max(n, 1))
 		bests = append(bests, best)
 	}
 	return bests, nil
@@ -366,6 +376,7 @@ type Flags struct {
 	BgHeader    bool
 	Chosen      string
 	TopN        int
+	BgPaths     []string
 }
 
 // bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
@@ -382,6 +393,178 @@ func GetBgZScoresMeans(bgZScores [][]float64) ([]float64, error) {
 	}
 	return out, nil
 }
+
+type OutlierStats struct {
+	BiggestOutlierPercentage any
+	BackgroundBiggestAverage any
+	ChosenRank               any
+	ChosenInternalRank       any
+	MeanBgRank               any
+	TTestResult              *stat.TTestResult
+	RealHighestZ             any
+	ZRankPercentile          any
+	ZHigher                  int
+	ZTotal                   int
+}
+
+func CleanFloat64(x *any) {
+	switch v := (*x).(type) {
+	case float64:
+		if math.IsNaN(v) {
+			*x = "NaN"
+		} else if math.IsInf(v, 1) {
+			*x = "Inf"
+		} else if math.IsInf(v, -1) {
+			*x = "-Inf"
+		}
+	default:
+		*x = "None"
+	}
+}
+
+func CleanFloat64s(x ...*any) {
+	for _, ptr := range x {
+		CleanFloat64(ptr)
+	}
+}
+
+func PrintOutlierStats(w io.Writer, o OutlierStats) error {
+	CleanFloat64s(
+		&o.BiggestOutlierPercentage,
+		&o.BackgroundBiggestAverage,
+		&o.ChosenRank,
+		&o.ChosenInternalRank,
+		&o.MeanBgRank,
+		&o.RealHighestZ,
+		&o.ZRankPercentile,
+	)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "\t")
+	return enc.Encode(o)
+}
+
+// Run all outlier code on the command line.
+func Outlier(f Flags) (OutlierStats, error) {
+	var o OutlierStats
+	realEntries, e := iterh.CollectWithError(ParsePedPath(f.RealPath, f.RealHeader))
+	if e != nil {
+		return o, e
+	}
+
+	if f.TopN == -1 {
+		realOutlier := GetBiggestOutlier(iterh.SliceIter(realEntries))
+
+		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutlierPaths(iterh.SliceIter[[]string](f.BgPaths), f.BgHeader), &e)
+		bgOutliers := iterh.Collect(bgOutliersSeq)
+		if e != nil {
+			return o, e
+		}
+
+		o.BiggestOutlierPercentage = BiggestOutlierPerc(realOutlier, iterh.SliceIter(bgOutliers))
+		o.BackgroundBiggestAverage = GetBiggestOutlierAvg(iterh.SliceIter(bgOutliers))
+	} else {
+		realOutliers := GetBiggestOutliers(iterh.SliceIter(realEntries), f.TopN)
+		realOutliersMean, e := stats.Mean(slices.Collect(Posteriors(slices.Values(realOutliers))))
+		if e != nil {
+			return o, e
+		}
+
+		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutliersPaths(iterh.SliceIter[[]string](f.BgPaths), f.BgHeader, f.TopN), &e)
+		bgOutliers := iterh.Collect(bgOutliersSeq)
+		if e != nil {
+			return o, e
+		}
+
+		bgOutliersMeans, e := iterh.CollectWithError(PosteriorMeans(slices.Values(bgOutliers)))
+		if e != nil {
+			return o, e
+		}
+
+		o.BiggestOutlierPercentage, _, _ = iterh.Rank(realOutliersMean, slices.Values(bgOutliersMeans))
+
+		bgAvg, e := stats.Mean(bgOutliersMeans)
+		if e != nil {
+			return o, e
+		}
+		o.BackgroundBiggestAverage = bgAvg
+	}
+
+	if f.Chosen != "" {
+		chosenRank, chosenInternalRank, bgRanks, e := RankStats(f.Chosen, iterh.SliceIter(realEntries), ParsePedPaths(f.BgHeader, f.BgPaths...))
+		if e != nil {
+			return o, e
+		}
+		meanBgRank, e := stats.Mean(bgRanks)
+		if e != nil {
+			return o, e
+		}
+		o.ChosenRank = chosenRank
+		o.ChosenInternalRank = chosenInternalRank
+		o.MeanBgRank = meanBgRank
+
+		sample := stat.Sample{Xs: bgRanks}
+		res, e := stat.OneSampleTTest(sample, 0.5, 0)
+		if e != nil {
+			return o, e
+		}
+		o.TTestResult = res
+	}
+
+	if f.TopN == -1 {
+		realZs, e := GetZscores(realEntries)
+		if e != nil {
+			return o, e
+		}
+		realHighestZ := iterh.Max(iterh.SliceIter(realZs))
+		bgZScores, e := GetAllBestZscores(ParsePedPaths(f.BgHeader, f.BgPaths...))
+		if e != nil {
+			return o, e
+		}
+
+		zrankperc, zhigher, ztotal := iterh.Rank(realHighestZ, iterh.SliceIter(bgZScores))
+		o.RealHighestZ = realHighestZ
+		o.ZRankPercentile = zrankperc
+		o.ZHigher = zhigher
+		o.ZTotal = ztotal
+	} else {
+		realZs, e := GetZscores(realEntries)
+		if e != nil {
+			return o, e
+		}
+		realHighestZs := TopN(iterh.SliceIter(realZs), f.TopN)
+		realHighestZsMean, e := stats.Mean(realHighestZs)
+		if e != nil {
+			return o, e
+		}
+
+		bgZScores, e := GetAllBestZscoresTopN(ParsePedPaths(f.BgHeader, f.BgPaths...), f.TopN)
+		if e != nil {
+			return o, e
+		}
+		bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
+		if e != nil {
+			return o, e
+		}
+
+		zrankperc, zhigher, ztotal := iterh.Rank(realHighestZsMean, iterh.SliceIter(bgZScoresMeans))
+		o.RealHighestZ = realHighestZsMean
+		o.ZRankPercentile = zrankperc
+		o.ZHigher = zhigher
+		o.ZTotal = ztotal
+	}
+	return o, nil
+}
+
+// family - Family ID
+// ind - Individual ID
+// father - Father ID
+// mother - Mother ID
+// sex - Individual sex
+// phenotype - provided phenotype status
+// prior - provided prior probability
+// posterior - calculated posterior probability
+// pheno_risk - calculated phenotype posterior probability
+// geno_risk - calculated genotype posterior probability
 
 // Run all outlier code on the command line.
 func RunOutlier() {
@@ -401,114 +584,18 @@ func RunOutlier() {
 		log.Fatal("missing -b")
 	}
 
-	realEntries, e := iterh.CollectWithError(ParsePedPath(f.RealPath, f.RealHeader))
+	var e error
+	f.BgPaths = iterh.Collect(iterh.BreakOnError(iterh.PathIter(f.BgPathsPath, iterh.LineIter), &e))
 	if e != nil {
 		log.Fatal(e)
 	}
 
-	bgPaths := iterh.Collect(iterh.BreakOnError(iterh.PathIter(f.BgPathsPath, iterh.LineIter), &e))
+	out, e := Outlier(f)
 	if e != nil {
 		log.Fatal(e)
 	}
-
-	if f.TopN == -1 {
-		realOutlier := GetBiggestOutlier(iterh.SliceIter(realEntries))
-
-		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutlierPaths(iterh.SliceIter[[]string](bgPaths), f.BgHeader), &e)
-		bgOutliers := iterh.Collect(bgOutliersSeq)
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		frac := BiggestOutlierPerc(realOutlier, iterh.SliceIter(bgOutliers))
-		fmt.Println("biggest outlier percentage:", frac)
-
-		bgAvg := GetBiggestOutlierAvg(iterh.SliceIter(bgOutliers))
-		fmt.Println("backgrount biggest average:", bgAvg)
-	} else {
-		realOutliers := GetBiggestOutliers(iterh.SliceIter(realEntries), f.TopN)
-		realOutliersMean, e := stats.Mean(slices.Collect(Posteriors(slices.Values(realOutliers))))
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		bgOutliersSeq := iterh.BreakOnError(GetBiggestOutliersPaths(iterh.SliceIter[[]string](bgPaths), f.BgHeader, f.TopN), &e)
-		bgOutliers := iterh.Collect(bgOutliersSeq)
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		bgOutliersMeans, e := iterh.CollectWithError(PosteriorMeans(slices.Values(bgOutliers)))
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		frac, _, _ := iterh.Rank(realOutliersMean, slices.Values(bgOutliersMeans))
-		if e != nil {
-			log.Fatal(e)
-		}
-		fmt.Println("biggest outlier percentage:", frac)
-
-		bgAvg, e := stats.Mean(bgOutliersMeans)
-		if e != nil {
-			log.Fatal(e)
-		}
-		fmt.Println("backgrount biggest average:", bgAvg)
-	}
-
-	if f.Chosen != "" {
-		chosenRank, chosenInternalRank, bgRanks, e := RankStats(f.Chosen, iterh.SliceIter(realEntries), ParsePedPaths(f.BgHeader, bgPaths...))
-		if e != nil {
-			log.Fatal(e)
-		}
-		meanBgRank, e := stats.Mean(bgRanks)
-		if e != nil {
-			log.Fatal(e)
-		}
-		fmt.Printf("chosenRank %v; chosenInternalRank %v; meanBgRank %v\n", chosenRank, chosenInternalRank, meanBgRank)
-		sample := stat.Sample{Xs: bgRanks}
-		res, e := stat.OneSampleTTest(sample, 0.5, 0)
-		if e != nil {
-			log.Fatal(e)
-		}
-		fmt.Printf("t test results: %#v\n", res)
-	}
-
-	if f.TopN == -1 {
-		realZs, e := GetZscores(realEntries)
-		if e != nil {
-			log.Fatal(e)
-		}
-		realHighestZ := iterh.Max(iterh.SliceIter(realZs))
-		bgZScores, e := GetAllBestZscores(ParsePedPaths(f.BgHeader, bgPaths...))
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		zrankperc, zhigher, ztotal := iterh.Rank(realHighestZ, iterh.SliceIter(bgZScores))
-		fmt.Printf("realHighestZ %v; zrankperc %v; zhigher %v; ztotal %v\n", realHighestZ, zrankperc, zhigher, ztotal)
-	} else {
-		realZs, e := GetZscores(realEntries)
-		if e != nil {
-			log.Fatal(e)
-		}
-		realHighestZs := TopN(iterh.SliceIter(realZs), f.TopN)
-		realHighestZsMean, e := stats.Mean(realHighestZs)
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		bgZScores, e := GetAllBestZscoresTopN(ParsePedPaths(f.BgHeader, bgPaths...), f.TopN)
-		if e != nil {
-			log.Fatal(e)
-		}
-		bgZScoresMeans, e := GetBgZScoresMeans(bgZScores)
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		zrankperc, zhigher, ztotal := iterh.Rank(realHighestZsMean, iterh.SliceIter(bgZScoresMeans))
-		fmt.Printf("realHighestZ %v; zrankperc %v; zhigher %v; ztotal %v\n", realHighestZsMean, zrankperc, zhigher, ztotal)
+	if e := PrintOutlierStats(os.Stdout, out); e != nil {
+		log.Fatal(e)
 	}
 }
 
@@ -522,3 +609,114 @@ func RunOutlier() {
 // posterior - calculated posterior probability
 // pheno_risk - calculated phenotype posterior probability
 // geno_risk - calculated genotype posterior probability
+
+var tsvRe = regexp.MustCompile(`\.tsv[^/]*\.gz$`)
+
+func WalkPaths(root string) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			yield(path, err)
+			return err
+		})
+		if err != nil {
+			yield("", err)
+		}
+	}
+}
+
+func TsvPaths(paths iter.Seq2[string, error]) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		for path, err := range paths {
+			if err != nil || tsvRe.MatchString(path) {
+				if !yield(path, err) {
+					return
+				}
+			}
+		}
+	}
+}
+
+func Outliers(threads int, f ...Flags) ([]OutlierStats, error) {
+	out := make([]OutlierStats, len(f))
+	var g errgroup.Group
+	if threads > 0 {
+		g.SetLimit(threads)
+	}
+	for i, fg := range f {
+		i := i
+		fg := fg
+		g.Go(func() error {
+			var e error
+			out[i], e = Outlier(fg)
+			return e
+		})
+	}
+	return out, g.Wait()
+}
+
+type OutliersFlags struct {
+	Threads int
+	Flags
+	OutliersPathPairs string
+	Flagsets          []Flags
+}
+
+func BuildOutliersFlags() OutliersFlags {
+	var f OutliersFlags
+	flag.StringVar(&f.Chosen, "c", "", "Chosen individual ID to run rank order statistics on")
+	flag.BoolVar(&f.RealHeader, "rh", false, "Real data has a header line")
+	flag.BoolVar(&f.BgHeader, "bh", false, "Background data has a header line")
+	flag.IntVar(&f.TopN, "t", -1, "Top number of individuals to average to get score (default 1)")
+	flag.StringVar(&f.OutliersPathPairs, "p", "", "Path to file containing tab-separated pair of paths (real data, background directory containing files of interest with *.tsv*.gz)")
+	flag.IntVar(&f.Threads, "T", 1, "Threads to use (default infinite)")
+
+	flag.Parse()
+
+	if f.OutliersPathPairs == "" {
+		log.Fatal("missing -p")
+	}
+
+	r, e := os.Open(f.OutliersPathPairs)
+	if e != nil {
+		log.Fatal(e)
+	}
+	defer func() {
+		if e := r.Close(); e != nil {
+			log.Fatal(e)
+		}
+	}()
+
+	s := bufio.NewScanner(r)
+	for s.Scan() {
+		fg := f.Flags
+		fields := strings.Split(s.Text(), "\t")
+		if len(fields) != 2 {
+			log.Printf("BuildOutlierFlags: len(fields) %v != 2; fields %v", len(fields), fields)
+			continue
+		}
+		fg.RealPath = fields[0]
+		var e error
+		fg.BgPaths = iterh.Collect(iterh.BreakOnError(TsvPaths(WalkPaths(fields[1])), &e))
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		f.Flagsets = append(f.Flagsets, fg)
+	}
+	return f
+}
+
+func RunOutliers() {
+	flags := BuildOutliersFlags()
+
+	outliers, e := Outliers(flags.Threads, flags.Flagsets...)
+	if e != nil {
+		log.Fatal(e)
+	}
+
+	for _, o := range outliers {
+		if e := PrintOutlierStats(os.Stdout, o); e != nil {
+			log.Fatal(e)
+		}
+	}
+}
